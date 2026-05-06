@@ -10,6 +10,10 @@ export default function RootLayout() {
           options={{ title: "Home", headerShown: false }}
         />
       </Stack>
+          <Stack.Screen
+            name="instructions"
+            options={{ title: "Instructions", headerShown: false }}
+          />
     </SafeAreaProvider>
   );
 }
