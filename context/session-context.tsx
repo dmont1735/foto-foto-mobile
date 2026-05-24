@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useState } from "react";
-import { Layout } from "../utils/strip-layouts"; // adjust path as needed
+import { Layout, StripBackground } from "../utils/strip-layouts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -7,8 +7,8 @@ export type PhotoFilter = "none" | "bw" | "sepia" | "vivid" | "warm" | "cool";
 
 export interface SessionState {
   layout: Layout | null;
-  photos: string[]; // local URIs, one per slot
-  background: string; // hex or rgba string, e.g. "#ff4089"
+  photos: string[];
+  background: StripBackground; // ← was `string`
   filter: PhotoFilter;
 }
 
@@ -18,7 +18,7 @@ interface SessionContextValue {
   addPhoto: (uri: string) => void;
   setPhotos: (photos: string[]) => void;
   removePhoto: (index: number) => void;
-  setBackground: (background: string) => void;
+  setBackground: (background: StripBackground) => void;
   setFilter: (filter: PhotoFilter) => void;
   resetSession: () => void;
 }
@@ -28,7 +28,7 @@ interface SessionContextValue {
 const DEFAULT_SESSION: SessionState = {
   layout: null,
   photos: [],
-  background: "#ffffff",
+  background: { type: "solid", color: "#ffffff" },
   filter: "none",
 };
 
@@ -42,7 +42,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<SessionState>(DEFAULT_SESSION);
 
   const setLayout = useCallback((layout: Layout) => {
-    setSession((prev) => ({ ...prev, layout }));
+    setSession((prev) => ({
+      ...prev,
+      layout,
+      background: layout.defaultBackground,
+    }));
   }, []);
 
   const addPhoto = useCallback((uri: string) => {
@@ -60,7 +64,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
-  const setBackground = useCallback((background: string) => {
+  const setBackground = useCallback((background: StripBackground) => {
     setSession((prev) => ({ ...prev, background }));
   }, []);
 

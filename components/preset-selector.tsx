@@ -1,23 +1,27 @@
+import PresetThumbnailTray, {
+  THUMBNAIL_GAP,
+  THUMBNAIL_WIDTH,
+} from "@/components/preset-thumbnail-tray";
+import {
+  CARD_WIDTH,
+  SCREEN_WIDTH,
+  ScreenFooter,
+  ScreenHeader,
+  ScreenInner,
+  sharedStyles,
+} from "@/components/screen-layout";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
   FlatList,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   ViewToken,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { globalStyles } from "../styles/global";
 import { colors } from "../styles/theme";
-import PresetThumbnailTray, {
-  THUMBNAIL_GAP,
-  THUMBNAIL_WIDTH,
-} from "./preset-thumbnail-tray";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +43,10 @@ export interface PresetSelectorProps {
   theme?: Partial<typeof defaultTheme>;
 }
 
+// Re-export so callers that previously imported from here still work.
+export { CARD_WIDTH, SCREEN_WIDTH };
+export const CARD_HEIGHT = CARD_WIDTH * (4 / 3);
+
 // ─── Theme ────────────────────────────────────────────────────────────────────
 
 const defaultTheme = {
@@ -55,12 +63,6 @@ const defaultTheme = {
   arrowIcon: colors.bgHeader,
   arrowDisabled: colors.bgButtonOption,
 };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-export const CARD_WIDTH = SCREEN_WIDTH - 32;
-export const CARD_HEIGHT = CARD_WIDTH * (4 / 3);
 
 // ─── Arrow Button ─────────────────────────────────────────────────────────────
 
@@ -194,38 +196,25 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({
     onConfirm(activeItem);
   }, [activeItem, onConfirm]);
 
+  // ScreenInner = plain flex:1 View — the parent screen owns the SafeAreaView.
   return (
-    <SafeAreaView
-      edges={["top", "bottom"]}
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <ScreenInner style={{ backgroundColor: theme.background }}>
       {/* Header */}
       {(title || subtitle) && (
-        <View style={styles.header}>
-          {title && (
-            <Text style={[styles.title, { color: theme.textPrimary }]}>
-              {title}
-            </Text>
-          )}
-          {subtitle && (
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              {subtitle}
-            </Text>
-          )}
-        </View>
+        <ScreenHeader title={title ?? ""} subtitle={subtitle} />
       )}
 
       {/* ── Preview (swipeable) ── */}
-      <View style={styles.previewSection}>
+      <View style={sharedStyles.previewSection}>
         <FlatList
           ref={flatListRef}
           data={items}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={styles.previewSlide}>
+            <View style={sharedStyles.previewSlide}>
               <View
                 style={[
-                  styles.previewCard,
+                  sharedStyles.previewCard,
                   {
                     backgroundColor: theme.surface,
                     borderColor: `${item.accentColor ?? theme.accent}30`,
@@ -241,7 +230,6 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({
           showsHorizontalScrollIndicator={false}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig.current}
-          contentContainerStyle={styles.previewListContent}
           getItemLayout={(_, index) => ({
             length: SCREEN_WIDTH,
             offset: SCREEN_WIDTH * index,
@@ -287,66 +275,18 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({
       />
 
       {/* ── Continue button ── */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[globalStyles.button, { backgroundColor: activeAccent }]}
-          onPress={handleConfirm}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={confirmLabel}
-        >
-          <Text style={globalStyles.buttonText}>{confirmLabel}</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      <ScreenFooter
+        label={confirmLabel}
+        onPress={handleConfirm}
+        accentColor={activeAccent}
+      />
+    </ScreenInner>
   );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles (only what's unique to PresetSelector) ────────────────────────────
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    letterSpacing: -0.4,
-    marginBottom: 4,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: "400",
-    textAlign: "center",
-  },
-  previewSection: {
-    flex: 1,
-    position: "relative",
-    overflow: "hidden",
-  },
-  previewListContent: {},
-  previewSlide: {
-    width: SCREEN_WIDTH,
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-  },
-  previewCard: {
-    flex: 1,
-    width: CARD_WIDTH,
-    borderRadius: 24,
-    borderWidth: 1,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   arrowOverlay: {
     position: "absolute",
     top: 0,
@@ -362,11 +302,6 @@ const styles = StyleSheet.create({
   arrowRight: {
     right: 4,
   },
-  footer: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 16,
-  },
   arrowButton: {
     width: 40,
     height: 40,
@@ -374,10 +309,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  arrowIcon: {
-    fontSize: 18,
-    fontWeight: "600",
   },
 });
 

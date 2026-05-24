@@ -1,16 +1,18 @@
 import { router } from "expo-router";
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
-import PresetSelector, {
+
+import PresetSelector, { PresetItem } from "@/components/preset-selector";
+import {
   CARD_HEIGHT,
   CARD_WIDTH,
-  PresetItem,
-} from "../components/preset-selector";
-import { useSession } from "../context/session-context";
-import { colors } from "../styles/theme";
-import { getAllLayouts, Layout } from "../utils/strip-layouts";
+  ScreenContainer,
+} from "@/components/screen-layout";
+import { useSession } from "@/context/session-context";
+import { colors } from "@/styles/theme";
+import { getAllLayouts, Layout } from "@/utils/strip-layouts";
 
-// ─── Slot grid preview ────────────────────────────────────────────────────────
+// ─── Layout preview (large card) ─────────────────────────────────────────────
 
 interface LayoutPreviewProps {
   layout: Layout;
@@ -40,7 +42,7 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ layout }) => {
   );
 };
 
-// ─── Slot grid thumbnail ──────────────────────────────────────────────────────
+// ─── Layout thumbnail (tray) ──────────────────────────────────────────────────
 
 interface LayoutThumbnailProps {
   layout: Layout;
@@ -80,14 +82,18 @@ export default function LayoutSelectionScreen() {
     router.push("/design-selection");
   };
 
+  // ScreenContainer owns the SafeAreaView.
+  // PresetSelector uses ScreenInner (plain View) so there's no nesting issue.
   return (
-    <PresetSelector
-      items={items}
-      title="Choose a layout"
-      subtitle="Pick the strip style that fits your shoot."
-      confirmLabel="Use this layout"
-      onConfirm={(item) => handleConfirm(item)}
-    />
+    <ScreenContainer>
+      <PresetSelector
+        items={items}
+        title="Choose a layout"
+        subtitle="Pick the strip style that fits your shoot."
+        confirmLabel="Use this layout"
+        onConfirm={handleConfirm}
+      />
+    </ScreenContainer>
   );
 }
 
@@ -101,11 +107,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   previewBadgeRow: {
-    // position: "absolute",
     bottom: -10,
-    // left: 8,
     flexDirection: "row",
-    // justifyContent: "center",
     gap: 4,
   },
   badge: {

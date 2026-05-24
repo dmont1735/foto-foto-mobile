@@ -1,4 +1,26 @@
+import React from "react";
 import { ImageSourcePropType } from "react-native";
+
+// ─── Background Types ─────────────────────────────────────────────────────────
+
+export type SolidBackground = {
+  type: "solid";
+  color: string;
+};
+
+export type ImageBackground = {
+  type: "image";
+  source: ImageSourcePropType;
+};
+
+export type SvgBackground = {
+  type: "svg";
+  component: React.FC<{ width: number; height: number }>;
+};
+
+export type StripBackground = SolidBackground | ImageBackground | SvgBackground;
+
+// ─── Layout Type ──────────────────────────────────────────────────────────────
 
 export type Layout = {
   name: string;
@@ -6,7 +28,12 @@ export type Layout = {
   source: ImageSourcePropType;
   numberOfSlots: number;
   orientation: "portrait" | "landscape";
+  defaultBackground: StripBackground;
 };
+
+// ─── Layouts ──────────────────────────────────────────────────────────────────
+
+import PlaidBackground from "@/components/backgrounds/PlaidPinkBackground";
 
 export const LAYOUTS: Layout[] = [
   {
@@ -15,6 +42,7 @@ export const LAYOUTS: Layout[] = [
     source: require("../assets/previews/vertical/Layout A.png"),
     numberOfSlots: 3,
     orientation: "portrait",
+    defaultBackground: { type: "solid", color: "#4c69ec" },
   },
   {
     name: "Layout B",
@@ -22,6 +50,7 @@ export const LAYOUTS: Layout[] = [
     source: require("../assets/previews/vertical/Layout B.png"),
     numberOfSlots: 4,
     orientation: "portrait",
+    defaultBackground: { type: "solid", color: "#ec944c" },
   },
   {
     name: "Layout C",
@@ -29,6 +58,7 @@ export const LAYOUTS: Layout[] = [
     source: require("../assets/previews/vertical/Layout C.png"),
     numberOfSlots: 4,
     orientation: "portrait",
+    defaultBackground: { type: "solid", color: "#23ca3f" },
   },
   {
     name: "Layout D",
@@ -36,6 +66,7 @@ export const LAYOUTS: Layout[] = [
     source: require("../assets/previews/vertical/Layout D.png"),
     numberOfSlots: 6,
     orientation: "portrait",
+    defaultBackground: { type: "solid", color: "#fa2f2f" },
   },
   {
     name: "Layout E",
@@ -43,6 +74,7 @@ export const LAYOUTS: Layout[] = [
     source: require("../assets/previews/horizontal/Layout E.png"),
     numberOfSlots: 3,
     orientation: "landscape",
+    defaultBackground: { type: "solid", color: "#f86ad5" },
   },
   {
     name: "Layout F",
@@ -50,6 +82,10 @@ export const LAYOUTS: Layout[] = [
     source: require("../assets/previews/horizontal/Layout F.png"),
     numberOfSlots: 4,
     orientation: "landscape",
+    defaultBackground: {
+      type: "svg",
+      component: PlaidBackground,
+    },
   },
 ];
 
