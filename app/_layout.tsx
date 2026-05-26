@@ -23,6 +23,10 @@ export default function RootLayout() {
             name="design-selection"
             options={{ title: "Design", headerShown: false }}
           />
+          <Stack.Screen
+            name="color-selection"
+            options={{ title: "Color", headerShown: false }}
+          />
         </Stack>
       </SessionProvider>
     </SafeAreaProvider>
