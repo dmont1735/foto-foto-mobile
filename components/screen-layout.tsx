@@ -16,14 +16,15 @@
  *     a plain flex:1 View. The SafeAreaView is already provided by the screen.
  */
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
-    Dimensions,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  Animated,
+  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { globalStyles } from "../styles/global";
@@ -40,17 +41,12 @@ export const CARD_WIDTH = SCREEN_WIDTH - 32;
 export const CARD_HEIGHT = CARD_WIDTH * (4 / 3);
 
 // ─── ScreenContainer ─────────────────────────────────────────────────────────
-// Use this ONLY in screen files (Expo Router routes).
 
 export interface ScreenContainerProps {
   children: React.ReactNode;
   style?: ViewStyle;
 }
 
-/**
- * Root container for screen files.
- * Owns the SafeAreaView — do NOT use inside reusable components.
- */
 export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   children,
   style,
@@ -64,18 +60,12 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
 );
 
 // ─── ScreenInner ──────────────────────────────────────────────────────────────
-// Use this inside reusable components (e.g. PresetSelector) that are already
-// mounted inside a SafeAreaView-owning screen.
 
 export interface ScreenInnerProps {
   children: React.ReactNode;
   style?: ViewStyle;
 }
 
-/**
- * Root container for reusable selector components.
- * Plain `flex: 1` View — safe-area insets are handled by the parent screen.
- */
 export const ScreenInner: React.FC<ScreenInnerProps> = ({
   children,
   style,
@@ -88,7 +78,6 @@ export interface ScreenHeaderProps {
   subtitle?: string;
 }
 
-/** Title + subtitle block. Typography and padding are intentionally locked. */
 export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
   title,
   subtitle,
@@ -111,7 +100,6 @@ export interface PreviewSectionProps {
   children: React.ReactNode;
 }
 
-/** flex:1 region that holds preview card(s). Clips overflow. */
 export const PreviewSection: React.FC<PreviewSectionProps> = ({ children }) => (
   <View style={sharedStyles.previewSection}>{children}</View>
 );
@@ -122,14 +110,42 @@ export interface PreviewSlideProps {
   children: React.ReactNode;
 }
 
-/**
- * Single-card slide container.
- * Applies the same padding as FlatList slides in PresetSelector so the card
- * position is pixel-identical between the two screens.
- */
 export const PreviewSlide: React.FC<PreviewSlideProps> = ({ children }) => (
   <View style={sharedStyles.previewSlide}>{children}</View>
 );
+
+// ─── ShimmerOverlay ───────────────────────────────────────────────────────────
+// Pulsing opacity overlay shown while the preview is capturing.
+
+const ShimmerOverlay: React.FC = () => {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.7,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.3,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.View
+      style={[sharedStyles.shimmerOverlay, { opacity }]}
+      pointerEvents="none"
+    />
+  );
+};
 
 // ─── PreviewCard ─────────────────────────────────────────────────────────────
 
@@ -139,13 +155,15 @@ export interface PreviewCardProps {
   accentColor?: string;
   /** Surface fill — defaults to colors.bgContainer. */
   backgroundColor?: string;
+  /** Shows a pulsing shimmer overlay while true. */
+  isLoading?: boolean;
 }
 
-/** The large rounded card shared by both selector screens. */
 export const PreviewCard: React.FC<PreviewCardProps> = ({
   children,
   accentColor = colors.accent,
   backgroundColor = colors.bgContainer,
+  isLoading = false,
 }) => (
   <View
     style={[
@@ -157,6 +175,7 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
     ]}
   >
     {children}
+    {isLoading && <ShimmerOverlay />}
   </View>
 );
 
@@ -168,7 +187,6 @@ export interface ScreenFooterProps {
   accentColor?: string;
 }
 
-/** Confirm button + padding wrapper. Padding locked to match PresetSelector. */
 export const ScreenFooter: React.FC<ScreenFooterProps> = ({
   label,
   onPress,
@@ -230,6 +248,11 @@ export const sharedStyles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+  },
+  shimmerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.bgMain,
+    borderRadius: 24,
   },
   footer: {
     paddingHorizontal: 20,

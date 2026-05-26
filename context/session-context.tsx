@@ -19,6 +19,7 @@ interface SessionContextValue {
   setPhotos: (photos: string[]) => void;
   removePhoto: (index: number) => void;
   setBackground: (background: StripBackground) => void;
+  setBackgroundColor: (color: string) => void;
   setFilter: (filter: PhotoFilter) => void;
   resetSession: () => void;
 }
@@ -68,6 +69,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setSession((prev) => ({ ...prev, background }));
   }, []);
 
+  const setBackgroundColor = useCallback((color: string) => {
+    setSession((prev) => {
+      const bg = prev.background;
+      if (bg.type === "solid") {
+        return { ...prev, background: { type: "solid", color } };
+      }
+      if (bg.type === "svg") {
+        return { ...prev, background: { ...bg, color } }; // ← only color changes
+      }
+      return prev; // image → no-op
+    });
+  }, []);
+
   const setFilter = useCallback((filter: PhotoFilter) => {
     setSession((prev) => ({ ...prev, filter }));
   }, []);
@@ -85,6 +99,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setPhotos,
         removePhoto,
         setBackground,
+        setBackgroundColor,
         setFilter,
         resetSession,
       }}

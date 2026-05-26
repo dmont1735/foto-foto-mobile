@@ -10,6 +10,7 @@ export const colors = {
   accent: "#ff4089",
   textHeader: "#fdd1ff", // #fdd1ffff → drop full opacity
   textMain: "#222222", // #222222ff → drop full opacity
+  defaultBackgroundColor: "#cf0000ff",
 
   // CSS box-shadow → RN shadow props (split per platform)
   buttonShadow: {

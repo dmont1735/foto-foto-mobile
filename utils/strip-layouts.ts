@@ -15,7 +15,8 @@ export type ImageBackground = {
 
 export type SvgBackground = {
   type: "svg";
-  component: React.FC<{ width: number; height: number }>;
+  component: React.FC<{ color: string; width: number; height: number }>;
+  color: string; // ← stored separately, mutated independently
 };
 
 export type StripBackground = SolidBackground | ImageBackground | SvgBackground;
@@ -33,7 +34,7 @@ export type Layout = {
 
 // ─── Layouts ──────────────────────────────────────────────────────────────────
 
-import PlaidBackground from "@/components/backgrounds/PlaidPinkBackground";
+import PlaidBackground from "@/components/backgrounds/PlaidBackground";
 
 export const LAYOUTS: Layout[] = [
   {
@@ -84,6 +85,7 @@ export const LAYOUTS: Layout[] = [
     orientation: "landscape",
     defaultBackground: {
       type: "svg",
+      color: "hsl(326, 100%, 76.9%, 50%)",
       component: PlaidBackground,
     },
   },
