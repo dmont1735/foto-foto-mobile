@@ -65,7 +65,7 @@ export default function ColorSelectionScreen() {
   return (
     <ScreenContainer>
       <ScreenHeader
-        title="Choose a colour"
+        title="Choose a color"
         subtitle="Pick the tone that matches your strip."
       />
 
@@ -123,8 +123,8 @@ export default function ColorSelectionScreen() {
       />
 
       <ScreenFooter
-        label="Use this colour"
-        onPress={() => router.push("/")}
+        label="Use this color"
+        onPress={() => router.push("/photo-capture")}
         accentColor={colors.accent}
       />
     </ScreenContainer>

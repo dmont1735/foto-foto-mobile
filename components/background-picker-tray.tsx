@@ -9,9 +9,9 @@ import {
   Image,
   ImageSourcePropType,
   StyleSheet,
-  Text,
   TouchableOpacity,
 } from "react-native";
+import GalleryAddIcon from "./icons/gallery-add-icon";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,8 +60,7 @@ const AddPhotoThumbnail: React.FC<{ accent: string; onPress: () => void }> = ({
     accessibilityRole="button"
     accessibilityLabel="Add a custom background photo"
   >
-    <Text style={[styles.addIcon, { color: accent }]}>+</Text>
-    <Text style={[styles.addLabel, { color: accent }]}>Add photo</Text>
+    <GalleryAddIcon size={35} color={colors.accent} />
   </TouchableOpacity>
 );
 

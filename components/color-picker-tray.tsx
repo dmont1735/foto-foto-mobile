@@ -1,6 +1,7 @@
 import { colors as themeColors } from "@/styles/theme";
 import React, { ReactNode, useCallback, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import PaletteIcon from "./icons/palette-icon";
 import PresetThumbnailTray, {
   THUMBNAIL_HEIGHT,
   THUMBNAIL_WIDTH,
@@ -58,8 +59,7 @@ const CustomColorThumbnail: React.FC<{
     accessibilityRole="button"
     accessibilityLabel="Pick a custom color"
   >
-    <Text style={[styles.customIcon, { color: accent }]}>+</Text>
-    <Text style={[styles.customLabel, { color: accent }]}>Custom</Text>
+    <PaletteIcon size={40} color={accent} />
   </TouchableOpacity>
 );
 

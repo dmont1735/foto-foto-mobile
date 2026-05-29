@@ -33,7 +33,7 @@ export default function CustomColorCard({
     >
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.title}>Custom colour</Text>
+          <Text style={styles.title}>Custom color</Text>
 
           <ColorPicker
             value={initialColor}
@@ -65,7 +65,7 @@ export default function CustomColorCard({
                 onClose();
               }}
             >
-              <Text style={styles.buttonText}>Use colour</Text>
+              <Text style={styles.buttonText}>Use color</Text>
             </Pressable>
           </View>
         </View>
