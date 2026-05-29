@@ -1,8 +1,3 @@
-import { router } from "expo-router";
-import { useState } from "react";
-import { Image, StyleSheet, View } from "react-native";
-
-import { BackgroundMode } from "@/components/background-mode-picker";
 import BackgroundImageTray, {
   BackgroundImageOption,
 } from "@/components/background-picker-tray";
@@ -20,6 +15,9 @@ import { colors } from "@/styles/theme";
 import PhotoboothStripExport from "@/utils/photobooth-strip-export";
 import { StripBackground } from "@/utils/strip-layouts";
 import { useBackgroundImagePicker } from "@/utils/use-background-image-picker";
+import { router } from "expo-router";
+import { useState } from "react";
+import { Image, StyleSheet, View } from "react-native";
 import { useSession } from "../context/session-context";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -43,7 +41,6 @@ export default function DesignSelectionScreen() {
 
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [mode, setMode] = useState<BackgroundMode>("color");
 
   const imagePicker = useBackgroundImagePicker();
 

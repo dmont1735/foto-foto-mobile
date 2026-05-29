@@ -24,7 +24,7 @@ const PolkaDotBackground: React.FC<Props> = ({ color, width, height }) => (
           cy={tile / 2}
           r={tile * 0.25}
           fill={color}
-          opacity={0.6}
+          opacity={0.8}
         />
       </>
     )}

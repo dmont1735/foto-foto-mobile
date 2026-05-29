@@ -4,7 +4,7 @@ import TiledPatternBackground from "./TiledPatternBackground";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STROKE_OPACITY = 0.5;
+const STROKE_OPACITY = 0.6;
 const STROKE_RATIO = 1 / 2; // stroke width as a fraction of tile size
 
 // ─── Component ────────────────────────────────────────────────────────────────

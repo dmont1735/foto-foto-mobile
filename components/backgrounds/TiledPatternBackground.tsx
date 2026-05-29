@@ -33,7 +33,7 @@ const TiledPatternBackground: React.FC<TiledPatternBackgroundProps> = ({
   centered = true,
   children,
 }) => {
-  const tile = width / tilesAcross;
+  const tile = Math.min(width, height) / tilesAcross;
   const offset = centered ? tile / 2 : 0;
 
   return (
