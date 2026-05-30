@@ -10,16 +10,12 @@ import {
   ScreenInner,
   sharedStyles,
 } from "@/components/screen-layout";
-import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useRef, useState } from "react";
 import {
-  Animated,
   FlatList,
   ScrollView,
-  StyleSheet,
-  TouchableOpacity,
   View,
-  ViewToken,
+  ViewToken
 } from "react-native";
 import { colors } from "../styles/theme";
 
@@ -59,72 +55,6 @@ const defaultTheme = {
   border: colors.bgCardSelected,
   thumbnailBorder: colors.bgButtonOption,
   thumbnailActiveBorder: colors.accent,
-  arrowBackground: colors.bgContainer,
-  arrowIcon: colors.bgHeader,
-  arrowDisabled: colors.bgButtonOption,
-};
-
-// ─── Arrow Button ─────────────────────────────────────────────────────────────
-
-interface ArrowButtonProps {
-  direction: "left" | "right";
-  onPress: () => void;
-  disabled?: boolean;
-  theme: typeof defaultTheme;
-}
-
-const ArrowButton: React.FC<ArrowButtonProps> = ({
-  direction,
-  onPress,
-  disabled,
-  theme,
-}) => {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () =>
-    Animated.spring(scale, {
-      toValue: 0.86,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 6,
-    }).start();
-
-  const handlePressOut = () =>
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 10,
-    }).start();
-
-  return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <TouchableOpacity
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={disabled}
-        activeOpacity={1}
-        accessibilityRole="button"
-        accessibilityLabel={direction === "left" ? "Previous" : "Next"}
-        style={[
-          styles.arrowButton,
-          {
-            backgroundColor: disabled
-              ? theme.arrowDisabled
-              : theme.arrowBackground,
-            borderColor: disabled ? "transparent" : `${theme.accent}40`,
-          },
-        ]}
-      >
-        <Ionicons
-          name={direction === "left" ? "chevron-back" : "chevron-forward"}
-          size={18}
-          color={disabled ? "#3A3A48" : theme.arrowIcon}
-        />
-      </TouchableOpacity>
-    </Animated.View>
-  );
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -236,26 +166,6 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({
             index,
           })}
         />
-
-        {/* Left arrow */}
-        <View style={[styles.arrowOverlay, styles.arrowLeft]}>
-          <ArrowButton
-            direction="left"
-            onPress={() => goTo(activeIndex - 1)}
-            disabled={activeIndex === 0}
-            theme={theme}
-          />
-        </View>
-
-        {/* Right arrow */}
-        <View style={[styles.arrowOverlay, styles.arrowRight]}>
-          <ArrowButton
-            direction="right"
-            onPress={() => goTo(activeIndex + 1)}
-            disabled={activeIndex === items.length - 1}
-            theme={theme}
-          />
-        </View>
       </View>
 
       {/* ── Bottom tray ── */}
@@ -283,33 +193,5 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({
     </ScreenInner>
   );
 };
-
-// ─── Styles (only what's unique to PresetSelector) ────────────────────────────
-
-const styles = StyleSheet.create({
-  arrowOverlay: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: 52,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-  },
-  arrowLeft: {
-    left: 4,
-  },
-  arrowRight: {
-    right: 4,
-  },
-  arrowButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
 
 export default PresetSelector;
