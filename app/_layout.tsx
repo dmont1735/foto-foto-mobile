@@ -28,6 +28,10 @@ export default function RootLayout() {
             options={{ title: "Color", headerShown: false }}
           />
           <Stack.Screen
+            name="photo-capture"
+            options={{ title: "Photo Capture", headerShown: false }}
+          />
+          <Stack.Screen
             name="photo-confirmation"
             options={{ title: "Photo Confirmation", headerShown: false }}
           />
