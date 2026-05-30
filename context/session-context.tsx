@@ -8,7 +8,7 @@ export type PhotoFilter = "none" | "bw" | "sepia" | "vivid" | "warm" | "cool";
 export interface SessionState {
   layout: Layout | null;
   photos: string[];
-  background: StripBackground; // ← was `string`
+  background: StripBackground;
   filter: PhotoFilter;
 }
 

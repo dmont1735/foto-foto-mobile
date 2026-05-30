@@ -275,6 +275,13 @@ const PhotoSlot: React.FC<{
   </View>
 );
 
+export function getSlotAspectRatio(type: LayoutType): number {
+  const config = LAYOUTS[type];
+  return (
+    config.slotAspectRatio ?? ORIENTATION_DEFAULT_ASPECT[config.orientation]
+  );
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 const DEFAULT_WIDTH_PORTRAIT = 320;

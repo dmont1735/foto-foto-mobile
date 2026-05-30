@@ -27,6 +27,10 @@ export default function RootLayout() {
             name="color-selection"
             options={{ title: "Color", headerShown: false }}
           />
+          <Stack.Screen
+            name="photo-confirmation"
+            options={{ title: "Photo Confirmation", headerShown: false }}
+          />
         </Stack>
       </SessionProvider>
     </SafeAreaProvider>
