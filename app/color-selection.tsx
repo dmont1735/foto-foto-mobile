@@ -1,21 +1,23 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Image, StyleSheet, View } from "react-native";
 
 import ColorPickerTray, { ColorOption } from "@/components/color-picker-tray";
 import CustomColorCard from "@/components/custom-color-card";
-import { LayoutType } from "@/components/photobooth-strip";
+import PhotoboothStrip, {
+  getStripNaturalSize,
+  LayoutType,
+} from "@/components/photobooth-strip";
 import {
-    CARD_WIDTH,
-    PreviewCard,
-    PreviewSection,
-    PreviewSlide,
-    ScreenContainer,
-    ScreenFooter,
-    ScreenHeader,
+  CARD_HEIGHT,
+  CARD_WIDTH,
+  PreviewCard,
+  PreviewSection,
+  PreviewSlide,
+  ScreenContainer,
+  ScreenFooter,
+  ScreenHeader,
 } from "@/components/screen-layout";
 import { colors } from "@/styles/theme";
-import PhotoboothStripExport from "@/utils/photobooth-strip-export";
 import { useSession } from "../context/session-context";
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -39,15 +41,19 @@ function layoutNameToType(name: string): LayoutType {
 export default function ColorSelectionScreen() {
   const { session, setBackgroundColor } = useSession();
   const { layout, photos } = session;
-
-  const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [customPickerVisible, setCustomPickerVisible] = useState(false);
 
   if (!layout) return null;
 
   const type = layoutNameToType(layout.name);
 
-  const images = photos.map((uri) => ({ uri }));
+  const images = photos;
+
+  const natural = getStripNaturalSize(type);
+  const scaleRatio = Math.min(
+    CARD_WIDTH / natural.width,
+    CARD_HEIGHT / natural.height,
+  );
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -69,36 +75,19 @@ export default function ColorSelectionScreen() {
         subtitle="Pick the tone that matches your strip."
       />
 
-      {/* ── Preview ── */}
       <PreviewSection>
         <PreviewSlide>
           <PreviewCard>
-            {previewUri ? (
-              <Image
-                source={{ uri: previewUri }}
-                style={styles.previewImage}
-                resizeMode="contain"
-              />
-            ) : (
-              <View style={styles.skeleton} />
-            )}
+            <PhotoboothStrip
+              type={type}
+              images={images}
+              background={session.background}
+              scaleRatio={scaleRatio}
+            />
           </PreviewCard>
         </PreviewSlide>
       </PreviewSection>
 
-      {/* ── Offscreen renderer ── */}
-      <View style={styles.offscreen} pointerEvents="none">
-        <PhotoboothStripExport
-          type={type}
-          images={images}
-          background={session.background}
-          width={CARD_WIDTH}
-          autoCaptureOnMount
-          onCaptureSuccess={setPreviewUri}
-        />
-      </View>
-
-      {/* ── Color tray ── */}
       <ColorPickerTray
         colors={PALETTE}
         initialIndex={0}
@@ -130,24 +119,3 @@ export default function ColorSelectionScreen() {
     </ScreenContainer>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  previewImage: {
-    width: "100%",
-    height: "100%",
-  },
-  skeleton: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: colors.bgButtonOption,
-    opacity: 0.4,
-  },
-  offscreen: {
-    position: "absolute",
-    top: -9999,
-    left: -9999,
-    opacity: 0,
-  },
-});
