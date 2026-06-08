@@ -2,15 +2,18 @@ import React from "react";
 import {
   Image,
   ImageSourcePropType,
+  Pressable,
   StyleSheet,
   Text,
   View,
   ViewStyle,
 } from "react-native";
 
-import { StripBackground } from "../utils/strip-layouts";
+import PlaidBackground from "@/components/backgrounds/PlaidBackground";
+import FilteredImage from "@/components/filtered-image";
+import { ImageTransform } from "@/components/photo-edit-sheet";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+import { StripBackground } from "../utils/strip-layouts";
 
 export type LayoutType = "A" | "B" | "C" | "D" | "E" | "F";
 
@@ -47,19 +50,24 @@ export interface SlotConfig {
   offsetY?: number;
 }
 
+export interface StripPhoto {
+  uri: string;
+  transform: ImageTransform | null;
+}
+
 export interface PhotoboothStripProps {
   type: LayoutType;
-  images?: ImageSourcePropType[];
+  images?: StripPhoto[];
   slots?: SlotConfig[];
   background?: StripBackground;
   stickers?: StickerConfig[];
   logo?: LogoConfig;
+  filterMatrix?: number[];
   width?: number;
   height?: number;
   scaleRatio?: number;
+  onImagePress?: (index: number) => void;
 }
-
-// ─── Layout Definitions ──────────────────────────────────────────────────────
 
 interface LayoutConfig {
   columns: number;
@@ -77,8 +85,6 @@ interface LayoutConfig {
   slotsOffsetX?: number;
   slotsOffsetY?: number;
 }
-
-import PlaidBackground from "@/components/backgrounds/PlaidBackground";
 
 const LAYOUTS: Record<LayoutType, LayoutConfig> = {
   A: {
@@ -176,7 +182,48 @@ const ORIENTATION_DEFAULT_ASPECT: Record<"portrait" | "landscape", number> = {
   landscape: 4 / 3,
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+export function getStripNaturalSize(
+  type: LayoutType,
+  customWidth?: number,
+): { width: number; height: number } {
+  const config = LAYOUTS[type];
+
+  const {
+    orientation,
+    rows,
+    columns,
+    paddingTop,
+    paddingBottom,
+    paddingLeft,
+    paddingRight,
+    gap,
+  } = config;
+
+  const defaultWidth =
+    orientation === "landscape"
+      ? DEFAULT_WIDTH_LANDSCAPE
+      : DEFAULT_WIDTH_PORTRAIT;
+
+  const stripWidth = customWidth ?? defaultWidth;
+  const innerWidth = stripWidth - paddingLeft - paddingRight;
+  const baseSlotWidth = (innerWidth - gap * (columns - 1)) / columns;
+
+  const rowHeights = Array.from({ length: rows }, () => {
+    const aspect =
+      config.slotAspectRatio ?? ORIENTATION_DEFAULT_ASPECT[orientation];
+
+    return baseSlotWidth / aspect;
+  });
+
+  const innerHeight = rowHeights.reduce((s, h) => s + h, 0) + gap * (rows - 1);
+
+  const stripHeight = innerHeight + paddingTop + paddingBottom;
+
+  return {
+    width: stripWidth,
+    height: stripHeight,
+  };
+}
 
 function resolveAspectRatio(
   slotCfg: SlotConfig | undefined,
@@ -216,8 +263,6 @@ function logoPosition(
   }
 }
 
-// ─── Background renderer ──────────────────────────────────────────────────────
-
 interface BackgroundProps {
   background: StripBackground;
   stripWidth: number;
@@ -229,7 +274,7 @@ const StripBackgroundRenderer: React.FC<BackgroundProps> = ({
   stripWidth,
   stripHeight,
 }) => {
-  if (background.type === "solid") return null; // handled by backgroundColor on the View
+  if (background.type === "solid") return null;
 
   if (background.type === "image") {
     return (
@@ -243,6 +288,7 @@ const StripBackgroundRenderer: React.FC<BackgroundProps> = ({
 
   if (background.type === "svg") {
     const SvgComponent = background.component;
+
     return (
       <SvgComponent
         color={background.color}
@@ -255,34 +301,113 @@ const StripBackgroundRenderer: React.FC<BackgroundProps> = ({
   return null;
 };
 
-// ─── Slot ────────────────────────────────────────────────────────────────────
-
 const PhotoSlot: React.FC<{
-  source?: ImageSourcePropType;
+  photo?: StripPhoto;
   style?: ViewStyle;
   slotRadius: number;
-}> = ({ source, style, slotRadius }) => (
-  <View style={[styles.slot, { borderRadius: slotRadius }, style]}>
-    {source ? (
-      <Image
-        source={source}
-        style={{ ...StyleSheet.absoluteFillObject, borderRadius: slotRadius }}
-        resizeMode="cover"
-      />
-    ) : (
-      <Text style={styles.emptyLabel}>Empty</Text>
-    )}
-  </View>
-);
+  filterMatrix?: number[];
+  width: number;
+  height: number;
+  onPress?: () => void;
+}> = ({ photo, style, slotRadius, filterMatrix, width, height, onPress }) => {
+  const uri = photo?.uri;
+  const transform = photo?.transform;
+
+  const imageScale = transform?.scale ?? 1;
+
+  /**
+   * Map the editor's fitted dimensions into slot space using a uniform
+   * cover-semantic scale factor. Math.max ensures the image still fills
+   * the slot on both axes before any pan is applied.
+   */
+  const editorFittedWidth = transform?.fittedWidth ?? width;
+  const editorFittedHeight = transform?.fittedHeight ?? height;
+
+  const slotToEditor = Math.max(
+    width / editorFittedWidth,
+    height / editorFittedHeight,
+  );
+
+  const fittedWidth = editorFittedWidth * slotToEditor;
+  const fittedHeight = editorFittedHeight * slotToEditor;
+
+  // Final rendered size after user pinch-scale
+  const scaledFittedWidth = fittedWidth * imageScale;
+  const scaledFittedHeight = fittedHeight * imageScale;
+
+  /**
+   * Convert editor-space translations to slot space, then clamp so the
+   * scaled image can never expose a gap at any edge.
+   *
+   * The clamp is essential: a large pan recorded in the editor (where the
+   * image is bigger) can overshoot the slot bounds when mapped down to the
+   * smaller slot coordinate space.
+   */
+  const rawTx = (transform?.translateX ?? 0) * slotToEditor;
+  const rawTy = (transform?.translateY ?? 0) * slotToEditor;
+
+  const maxTx = Math.max(0, (scaledFittedWidth - width) / 2);
+  const maxTy = Math.max(0, (scaledFittedHeight - height) / 2);
+
+  const translateX = Math.max(-maxTx, Math.min(maxTx, rawTx));
+  const translateY = Math.max(-maxTy, Math.min(maxTy, rawTy));
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.slot, { borderRadius: slotRadius }, style]}
+    >
+      {photo ? (
+        <View
+          style={{
+            width,
+            height,
+            overflow: "hidden",
+            borderRadius: slotRadius,
+          }}
+        >
+          <View
+            style={{
+              position: "absolute",
+              width: scaledFittedWidth,
+              height: scaledFittedHeight,
+              left: (width - scaledFittedWidth) / 2 + translateX,
+              top: (height - scaledFittedHeight) / 2 + translateY,
+            }}
+          >
+            {filterMatrix && uri ? (
+              <FilteredImage
+                uri={uri}
+                matrix={filterMatrix}
+                width={scaledFittedWidth}
+                height={scaledFittedHeight}
+              />
+            ) : (
+              <Image
+                source={{ uri }}
+                style={{
+                  width: scaledFittedWidth,
+                  height: scaledFittedHeight,
+                }}
+                resizeMode="cover"
+              />
+            )}
+          </View>
+        </View>
+      ) : (
+        <Text style={styles.emptyLabel}>Empty</Text>
+      )}
+    </Pressable>
+  );
+};
 
 export function getSlotAspectRatio(type: LayoutType): number {
   const config = LAYOUTS[type];
+
   return (
     config.slotAspectRatio ?? ORIENTATION_DEFAULT_ASPECT[config.orientation]
   );
 }
-
-// ─── Main ────────────────────────────────────────────────────────────────────
 
 const DEFAULT_WIDTH_PORTRAIT = 320;
 const DEFAULT_WIDTH_LANDSCAPE = 600;
@@ -294,9 +419,11 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
   background,
   stickers = [],
   logo,
+  filterMatrix,
   width,
   height,
   scaleRatio = 1,
+  onImagePress,
 }) => {
   const config = LAYOUTS[type];
 
@@ -367,7 +494,7 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
     const aspect = resolveAspectRatio(slotCfg, config);
     return {
       key: i,
-      source: images[i],
+      photo: images[i],
       width: slotWidth,
       height: slotWidth / aspect,
       top:
@@ -381,8 +508,6 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
     };
   });
 
-  // ── Strip ────────────────────────────────────────────────────────────────
-
   const strip = (
     <View
       style={{
@@ -393,14 +518,12 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
         backgroundColor: resolvedBgColor,
       }}
     >
-      {/* ── Background ── */}
       <StripBackgroundRenderer
         background={resolvedBackground}
         stripWidth={stripWidth}
         stripHeight={stripHeight}
       />
 
-      {/* ── Photo slots ── */}
       <View
         style={{
           position: "absolute",
@@ -413,8 +536,14 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
         {slots.map((s) => (
           <PhotoSlot
             key={s.key}
-            source={s.source}
+            photo={s.photo}
             slotRadius={scaledSlotRadius}
+            filterMatrix={filterMatrix}
+            width={s.width}
+            height={s.height}
+            onPress={() => {
+              onImagePress?.(s.key);
+            }}
             style={{
               position: "absolute",
               width: s.width,
@@ -426,7 +555,6 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
         ))}
       </View>
 
-      {/* ── Stickers ── */}
       {stickers.map((sticker, i) => (
         <Image
           key={i}
@@ -445,7 +573,6 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
         />
       ))}
 
-      {/* ── Logo ── */}
       {logo && (
         <Image
           source={logo.source}
@@ -461,7 +588,9 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
     </View>
   );
 
-  if (clampedScale === 1) return strip;
+  if (clampedScale === 1) {
+    return strip;
+  }
 
   const scaledW = stripWidth * clampedScale;
   const scaledH = stripHeight * clampedScale;
@@ -484,8 +613,6 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
     </View>
   );
 };
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   slot: {
