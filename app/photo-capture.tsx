@@ -10,9 +10,9 @@ import { router } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 
 import {
+  Dimensions,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -32,6 +32,7 @@ import GalleryAddIcon from "@/components/icons/gallery-add-icon";
 import TimerIcon from "@/components/icons/timer-icon";
 
 import FlipCameraIcon from "@/components/icons/flip-camera-icon";
+import { ImageTransform } from "@/components/photo-edit-sheet";
 import { colors } from "@/styles/theme";
 import { useSession } from "../context/session-context";
 
@@ -39,6 +40,55 @@ import { useSession } from "../context/session-context";
 
 function layoutNameToType(name: string): LayoutType {
   return name.split(" ")[1] as LayoutType;
+}
+
+/**
+ * Compute an initial ImageTransform for a photo URI given the editor crop
+ * dimensions. This must use the same crop size the edit sheet uses so that
+ * fittedWidth/fittedHeight are in the correct coordinate space for PhotoSlot.
+ *
+ * The edit sheet derives cropWidth as: SCREEN_WIDTH - 80
+ * (see photo-edit-sheet.tsx: EDITOR_WIDTH = SCREEN_WIDTH - 80)
+ */
+function computeInitialTransform(
+  uri: string,
+  slotAspectRatio: number,
+  onDone: (transform: ImageTransform) => void,
+) {
+  const screenWidth = Dimensions.get("window").width;
+  const cropWidth = screenWidth - 80; // mirrors EDITOR_WIDTH in photo-edit-sheet
+  const cropHeight = cropWidth / slotAspectRatio;
+
+  Image.getSize(
+    uri,
+    (origW, origH) => {
+      const coverScale = Math.max(cropWidth / origW, cropHeight / origH);
+
+      onDone({
+        translateX: 0,
+        translateY: 0,
+        scale: 1,
+        originalWidth: origW,
+        originalHeight: origH,
+        fittedWidth: origW * coverScale,
+        fittedHeight: origH * coverScale,
+      });
+    },
+    (err) => {
+      console.warn("computeInitialTransform: Image.getSize failed", err);
+      // Fall back to a transform that treats the image as exactly fitting the
+      // crop area — PhotoSlot will cover-fit as best it can.
+      onDone({
+        translateX: 0,
+        translateY: 0,
+        scale: 1,
+        originalWidth: cropWidth,
+        originalHeight: cropHeight,
+        fittedWidth: cropWidth,
+        fittedHeight: cropHeight,
+      });
+    },
+  );
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -172,6 +222,22 @@ export default function PhotoCaptureScreen() {
     });
   }, []);
 
+  /**
+   * Resolves image dimensions then stores the photo with a correctly computed
+   * initial transform. Using the editor crop dimensions here (SCREEN_WIDTH - 80)
+   * ensures fittedWidth/fittedHeight are in the same coordinate space that
+   * PhotoSlot uses when mapping transforms from the edit sheet.
+   */
+  const addPhotoWithTransform = useCallback(
+    (uri: string) => {
+      computeInitialTransform(uri, slotAspectRatio, (transform) => {
+        addPhoto(uri, transform);
+        setCaptureCount((c) => c + 1);
+      });
+    },
+    [addPhoto, slotAspectRatio],
+  );
+
   const handleGallery = useCallback(async () => {
     if (allFilled) return;
 
@@ -186,10 +252,9 @@ export default function PhotoCaptureScreen() {
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      addPhoto(result.assets[0].uri);
-      setCaptureCount((c) => c + 1);
+      addPhotoWithTransform(result.assets[0].uri);
     }
-  }, [allFilled, addPhoto]);
+  }, [allFilled, addPhotoWithTransform]);
 
   const takePhoto = useCallback(async () => {
     if (!cameraRef.current) return;
@@ -203,15 +268,14 @@ export default function PhotoCaptureScreen() {
       });
 
       if (photo?.uri) {
-        addPhoto(photo.uri);
-        setCaptureCount((c) => c + 1);
+        addPhotoWithTransform(photo.uri);
       }
     } catch (e) {
       console.error("Capture failed:", e);
     } finally {
       setIsCapturing(false);
     }
-  }, [addPhoto]);
+  }, [addPhotoWithTransform]);
 
   const handleCapture = useCallback(() => {
     if (isCapturing || allFilled || showCountdown) return;
@@ -331,7 +395,7 @@ export default function PhotoCaptureScreen() {
       </View>
 
       {/* ── Photo summary ── */}
-      <ScrollView
+      {/* <ScrollView
         key={captureCount}
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -341,13 +405,13 @@ export default function PhotoCaptureScreen() {
         {Array.from({ length: totalSlots }, (_, i) => (
           <View key={i} style={{ marginRight: i < totalSlots - 1 ? 10 : 0 }}>
             <PhotoThumbnail
-              uri={photos[i] ?? null}
+              uri={photos[i].uri ?? null}
               index={i}
               slotAspectRatio={slotAspectRatio}
             />
           </View>
         ))}
-      </ScrollView>
+      </ScrollView> */}
 
       {/* ── Footer ── */}
       <View style={styles.footer}>
