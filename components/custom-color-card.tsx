@@ -2,9 +2,9 @@ import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import ColorPicker, {
-    HueSlider,
-    Panel1,
-    Preview,
+  HueSlider,
+  Panel1,
+  Preview,
 } from "reanimated-color-picker";
 
 import { colors } from "@/styles/theme";
@@ -37,7 +37,7 @@ export default function CustomColorCard({
 
           <ColorPicker
             value={initialColor}
-            onCompleteJS={(color) => {
+            onComplete={(color) => {
               setSelectedColor(color.hex);
             }}
             style={styles.picker}
