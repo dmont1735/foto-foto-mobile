@@ -85,7 +85,7 @@ export const LAYOUTS: Layout[] = [
     orientation: "landscape",
     defaultBackground: {
       type: "svg",
-      color: "hsl(326, 100%, 76.9%, 50%)",
+      color: "#fca2d5",
       component: PlaidBackground,
     },
   },
