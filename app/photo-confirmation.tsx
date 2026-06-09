@@ -9,15 +9,14 @@ import {
   PreviewCard,
   PreviewSection,
   PreviewSlide,
+  ScreenContainer,
   ScreenFooter,
   ScreenHeader,
-  ScreenInner,
 } from "@/components/screen-layout";
 import { colors } from "@/styles/theme";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../context/session-context";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -31,8 +30,6 @@ function layoutNameToType(name: string): LayoutType {
 export default function PhotoConfirmationScreen() {
   const { session, updatePhotoTransform } = useSession();
   const { layout, photos } = session;
-
-  const insets = useSafeAreaInsets();
 
   if (!layout) return null;
 
@@ -58,40 +55,33 @@ export default function PhotoConfirmationScreen() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <View
-      style={[
-        styles.root,
-        { paddingTop: insets.top, paddingBottom: insets.bottom },
-      ]}
-    >
-      <ScreenInner style={{ backgroundColor: colors.bgMain }}>
-        <ScreenHeader
-          title="Confirm your photos"
-          subtitle="Tap any photo to adjust it"
-        />
+    <ScreenContainer>
+      <ScreenHeader
+        title="Confirm your photos"
+        subtitle="Tap any photo to adjust it"
+      />
 
-        <PreviewSection>
-          <PreviewSlide>
-            <PreviewCard>
-              <PhotoboothStrip
-                type={type}
-                images={images}
-                background={session.background}
-                scaleRatio={scaleRatio}
-                onImagePress={(index) => {
-                  setEditSheet({ visible: true, index });
-                }}
-              />
-            </PreviewCard>
-          </PreviewSlide>
-        </PreviewSection>
+      <PreviewSection>
+        <PreviewSlide>
+          <PreviewCard>
+            <PhotoboothStrip
+              type={type}
+              images={images}
+              background={session.background}
+              scaleRatio={scaleRatio}
+              onImagePress={(index) => {
+                setEditSheet({ visible: true, index });
+              }}
+            />
+          </PreviewCard>
+        </PreviewSlide>
+      </PreviewSection>
 
-        <ScreenFooter
-          label="Continue"
-          onPress={() => router.push("/filter-selection")}
-          accentColor={colors.accent}
-        />
-      </ScreenInner>
+      <ScreenFooter
+        label="Continue"
+        onPress={() => router.push("/filter-selection")}
+        accentColor={colors.accent}
+      />
 
       {editSheet.visible && (
         <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
@@ -119,15 +109,11 @@ export default function PhotoConfirmationScreen() {
           </View>
         </View>
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.bgMain,
-  },
   backdrop: {
     backgroundColor: "rgba(0,0,0,0.6)",
   },
