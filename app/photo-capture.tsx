@@ -6,10 +6,11 @@ import {
   useCameraPermissions,
 } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 
 import {
+  ActivityIndicator,
   Dimensions,
   Image,
   Pressable,
@@ -76,8 +77,6 @@ function computeInitialTransform(
     },
     (err) => {
       console.warn("computeInitialTransform: Image.getSize failed", err);
-      // Fall back to a transform that treats the image as exactly fitting the
-      // crop area — PhotoSlot will cover-fit as best it can.
       onDone({
         translateX: 0,
         translateY: 0,
@@ -181,8 +180,13 @@ const TimerIconWithPill: React.FC<{ seconds: TimerSeconds }> = ({
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function PhotoCaptureScreen() {
-  const { session, addPhoto } = useSession();
+  const { session, addPhoto, addPhotos, updatePhotoTransform, replacePhoto } =
+    useSession();
   const { layout, photos } = session;
+
+  const { retakeIndex } = useLocalSearchParams<{ retakeIndex?: string }>();
+  const retakeIdx = retakeIndex != null ? parseInt(retakeIndex, 10) : null;
+  const isRetakeMode = retakeIdx !== null && !isNaN(retakeIdx);
 
   const [facing, setFacing] = useState<CameraType>("front");
   const [flash, setFlash] = useState<FlashMode>("off");
@@ -190,6 +194,7 @@ export default function PhotoCaptureScreen() {
   const [captureCount, setCaptureCount] = useState(0);
   const [showCountdown, setShowCountdown] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState<TimerSeconds>(3);
+  const [isLoadingGallery, setIsLoadingGallery] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
 
   const cameraRef = useRef<CameraView>(null);
@@ -199,7 +204,8 @@ export default function PhotoCaptureScreen() {
   const type = layoutNameToType(layout.name);
   const totalSlots = layout.numberOfSlots;
   const slotsFilled = photos.length;
-  const allFilled = slotsFilled >= totalSlots;
+  // In retake mode the viewfinder is always shown and controls stay enabled.
+  const allFilled = !isRetakeMode && slotsFilled >= totalSlots;
   const slotAspectRatio = getSlotAspectRatio(type);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -222,39 +228,73 @@ export default function PhotoCaptureScreen() {
     });
   }, []);
 
-  /**
-   * Resolves image dimensions then stores the photo with a correctly computed
-   * initial transform. Using the editor crop dimensions here (SCREEN_WIDTH - 80)
-   * ensures fittedWidth/fittedHeight are in the same coordinate space that
-   * PhotoSlot uses when mapping transforms from the edit sheet.
-   */
   const addPhotoWithTransform = useCallback(
     (uri: string) => {
       computeInitialTransform(uri, slotAspectRatio, (transform) => {
-        addPhoto(uri, transform);
-        setCaptureCount((c) => c + 1);
+        if (isRetakeMode) {
+          replacePhoto(retakeIdx!, uri, transform);
+          router.back();
+        } else {
+          addPhoto(uri, transform);
+          setCaptureCount((c) => c + 1);
+        }
       });
     },
-    [addPhoto, slotAspectRatio],
+    [addPhoto, replacePhoto, slotAspectRatio, isRetakeMode, retakeIdx],
   );
 
   const handleGallery = useCallback(async () => {
-    if (allFilled) return;
+    if (!isRetakeMode && allFilled) return;
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
     if (status !== "granted") return;
+
+    const remainingSlots = isRetakeMode ? 1 : totalSlots - slotsFilled;
+
+    setIsLoadingGallery(true);
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
+      allowsMultipleSelection: !isRetakeMode,
+      selectionLimit: remainingSlots,
       quality: 0.85,
     });
 
-    if (!result.canceled && result.assets[0]?.uri) {
-      addPhotoWithTransform(result.assets[0].uri);
+    if (!result.canceled) {
+      if (isRetakeMode) {
+        const asset = result.assets[0];
+        replacePhoto(retakeIdx!, asset.uri, null);
+        computeInitialTransform(asset.uri, slotAspectRatio, (transform) => {
+          updatePhotoTransform(retakeIdx!, transform);
+        });
+        router.back();
+      } else {
+        addPhotos(
+          result.assets.map((asset) => ({ uri: asset.uri, transform: null })),
+        );
+        setCaptureCount((c) => c + result.assets.length);
+
+        result.assets.forEach((asset, i) => {
+          const index = slotsFilled + i;
+          computeInitialTransform(asset.uri, slotAspectRatio, (transform) => {
+            updatePhotoTransform(index, transform);
+          });
+        });
+      }
     }
-  }, [allFilled, addPhotoWithTransform]);
+
+    setIsLoadingGallery(false);
+  }, [
+    isRetakeMode,
+    allFilled,
+    totalSlots,
+    slotsFilled,
+    retakeIdx,
+    slotAspectRatio,
+    addPhotos,
+    replacePhoto,
+    updatePhotoTransform,
+  ]);
 
   const takePhoto = useCallback(async () => {
     if (!cameraRef.current) return;
@@ -314,9 +354,11 @@ export default function PhotoCaptureScreen() {
         <Text style={styles.title}>Take photos</Text>
 
         <Text style={styles.subtitle}>
-          {allFilled
-            ? "All photos taken!"
-            : `Photo ${slotsFilled + 1} of ${totalSlots}`}
+          {isRetakeMode
+            ? `Retaking photo ${retakeIdx! + 1}`
+            : allFilled
+              ? "All photos taken!"
+              : `Photo ${slotsFilled + 1} of ${totalSlots}`}
         </Text>
       </View>
 
@@ -336,7 +378,7 @@ export default function PhotoCaptureScreen() {
               <OverlayCountdown
                 visible={showCountdown}
                 start={timerSeconds}
-                cycles={totalSlots}
+                cycles={isRetakeMode ? 1 : totalSlots}
                 delayBetweenCycles={3000}
                 onCycleComplete={async () => {
                   await takePhoto();
@@ -387,31 +429,18 @@ export default function PhotoCaptureScreen() {
             disabled={allFilled || showCountdown}
           />
           <IconButton
-            icon={<GalleryAddIcon size={30} color={colors.accent} />}
+            icon={
+              isLoadingGallery ? (
+                <ActivityIndicator size="small" color={colors.accent} />
+              ) : (
+                <GalleryAddIcon size={30} color={colors.accent} />
+              )
+            }
             onPress={handleGallery}
-            disabled={allFilled || showCountdown}
+            disabled={allFilled || showCountdown || isLoadingGallery}
           />
         </View>
       </View>
-
-      {/* ── Photo summary ── */}
-      {/* <ScrollView
-        key={captureCount}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.summaryContent}
-        style={styles.summary}
-      >
-        {Array.from({ length: totalSlots }, (_, i) => (
-          <View key={i} style={{ marginRight: i < totalSlots - 1 ? 10 : 0 }}>
-            <PhotoThumbnail
-              uri={photos[i].uri ?? null}
-              index={i}
-              slotAspectRatio={slotAspectRatio}
-            />
-          </View>
-        ))}
-      </ScrollView> */}
 
       {/* ── Footer ── */}
       <View style={styles.footer}>

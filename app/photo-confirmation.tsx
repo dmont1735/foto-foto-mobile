@@ -106,7 +106,10 @@ export default function PhotoConfirmationScreen() {
               onCancel={closeSheet}
               onRetake={(i) => {
                 closeSheet();
-                router.push("/photo-capture");
+                router.push({
+                  pathname: "/photo-capture",
+                  params: { retakeIndex: i },
+                });
               }}
               onConfirm={(i, transform) => {
                 updatePhotoTransform(i, transform);

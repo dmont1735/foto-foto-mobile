@@ -49,6 +49,10 @@ interface SessionContextValue {
 
   addPhoto: (uri: string, transform?: ImageTransform | null) => void;
 
+  addPhotos: (
+    entries: { uri: string; transform: ImageTransform | null }[],
+  ) => void;
+
   setPhotos: (photos: SessionPhoto[]) => void;
 
   replacePhoto: (
@@ -101,13 +105,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     (uri: string, transform: ImageTransform | null = null) => {
       setSession((prev) => ({
         ...prev,
-        photos: [
-          ...prev.photos,
-          {
-            uri,
-            transform,
-          },
-        ],
+        photos: [...prev.photos, { uri, transform }],
+      }));
+    },
+    [],
+  );
+
+  const addPhotos = useCallback(
+    (entries: { uri: string; transform: ImageTransform | null }[]) => {
+      setSession((prev) => ({
+        ...prev,
+        photos: [...prev.photos, ...entries],
       }));
     },
     [],
@@ -125,12 +133,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setSession((prev) => ({
         ...prev,
         photos: prev.photos.map((photo, i) =>
-          i === index
-            ? {
-                uri,
-                transform,
-              }
-            : photo,
+          i === index ? { uri, transform } : photo,
         ),
       }));
     },
@@ -142,12 +145,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setSession((prev) => ({
         ...prev,
         photos: prev.photos.map((photo, i) =>
-          i === index
-            ? {
-                ...photo,
-                transform,
-              }
-            : photo,
+          i === index ? { ...photo, transform } : photo,
         ),
       }));
     },
@@ -173,23 +171,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const bg = prev.background;
 
       if (bg.type === "solid") {
-        return {
-          ...prev,
-          background: {
-            type: "solid",
-            color,
-          },
-        };
+        return { ...prev, background: { type: "solid", color } };
       }
 
       if (bg.type === "svg") {
-        return {
-          ...prev,
-          background: {
-            ...bg,
-            color,
-          },
-        };
+        return { ...prev, background: { ...bg, color } };
       }
 
       return prev;
@@ -216,6 +202,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         session,
         setLayout,
         addPhoto,
+        addPhotos,
         setPhotos,
         replacePhoto,
         updatePhotoTransform,
