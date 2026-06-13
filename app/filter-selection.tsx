@@ -69,7 +69,7 @@ export default function FilterPreviewScreen() {
 
       <ScreenFooter
         label="Continue"
-        onPress={() => router.back()}
+        onPress={() => router.push("/sticker-selection")}
         accentColor={colors.accent}
       />
     </ScreenContainer>

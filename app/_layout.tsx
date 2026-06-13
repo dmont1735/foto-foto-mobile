@@ -41,6 +41,10 @@ export default function RootLayout() {
               name="filter-selection"
               options={{ title: "Filter", headerShown: false }}
             />
+            <Stack.Screen
+              name="sticker-selection"
+              options={{ title: "Sticker", headerShown: false }}
+            />
           </Stack>
         </SessionProvider>
       </SafeAreaProvider>

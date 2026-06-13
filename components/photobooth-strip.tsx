@@ -14,6 +14,11 @@ import FilteredImage from "@/components/filtered-image";
 import { ImageTransform } from "@/components/photo-edit-sheet";
 
 import { StripBackground } from "../utils/strip-layouts";
+type SvgComponent = React.FC<{
+  width?: number;
+  height?: number;
+  color?: string;
+}>;
 
 export type LayoutType = "A" | "B" | "C" | "D" | "E" | "F";
 
@@ -26,6 +31,10 @@ export type LogoAnchor =
   | "bottom-right"
   | "custom";
 
+export type StickerSource =
+  | { kind: "image"; source: ImageSourcePropType }
+  | { kind: "svg"; component: SvgComponent };
+
 export interface LogoConfig {
   anchor: LogoAnchor;
   source: ImageSourcePropType;
@@ -36,12 +45,13 @@ export interface LogoConfig {
 }
 
 export interface StickerConfig {
-  source: ImageSourcePropType;
+  source: StickerSource;
   x: number;
   y: number;
   width: number;
   height: number;
   rotation?: number;
+  color?: string;
 }
 
 export interface SlotConfig {
@@ -66,6 +76,7 @@ export interface PhotoboothStripProps {
   width?: number;
   height?: number;
   scaleRatio?: number;
+  pointerEvents?: "box-none" | "none" | "box-only" | "auto";
   onImagePress?: (index: number) => void;
 }
 
@@ -423,6 +434,7 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
   width,
   height,
   scaleRatio = 1,
+  pointerEvents,
   onImagePress,
 }) => {
   const config = LAYOUTS[type];
@@ -555,23 +567,36 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
         ))}
       </View>
 
-      {stickers.map((sticker, i) => (
-        <Image
-          key={i}
-          source={sticker.source}
-          style={{
-            position: "absolute",
-            top: sticker.y,
-            left: sticker.x,
-            width: sticker.width,
-            height: sticker.height,
-            transform: sticker.rotation
-              ? [{ rotate: `${sticker.rotation}deg` }]
-              : [],
-          }}
-          resizeMode="contain"
-        />
-      ))}
+      {stickers.map((sticker, i) => {
+        const sharedStyle = {
+          position: "absolute" as const,
+          top: sticker.y,
+          left: sticker.x,
+          width: sticker.width,
+          height: sticker.height,
+          transform: sticker.rotation
+            ? [{ rotate: `${sticker.rotation}deg` }]
+            : [],
+        };
+
+        if (sticker.source.kind === "svg") {
+          const SvgComp = sticker.source.component;
+          return (
+            <View key={i} style={sharedStyle}>
+              <SvgComp width={sticker.width} height={sticker.height} />
+            </View>
+          );
+        }
+
+        return (
+          <Image
+            key={i}
+            source={sticker.source.source}
+            style={sharedStyle}
+            resizeMode="contain"
+          />
+        );
+      })}
 
       {logo && (
         <Image
@@ -589,7 +614,7 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
   );
 
   if (clampedScale === 1) {
-    return strip;
+    return <View pointerEvents={pointerEvents}>{strip}</View>;
   }
 
   const scaledW = stripWidth * clampedScale;
@@ -598,7 +623,10 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
   const shrinkY = stripHeight - scaledH;
 
   return (
-    <View style={{ width: scaledW, height: scaledH, overflow: "visible" }}>
+    <View
+      style={{ width: scaledW, height: scaledH, overflow: "visible" }}
+      pointerEvents={pointerEvents}
+    >
       <View
         style={{
           transform: [{ scale: clampedScale }],
