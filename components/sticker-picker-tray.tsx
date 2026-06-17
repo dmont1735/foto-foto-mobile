@@ -1,20 +1,13 @@
 import { useCallback } from "react";
 import { Image, StyleSheet, View } from "react-native";
 
-import StarSvg from "@/components/icons/sparkle-icon";
 import { colors as themeColors } from "@/styles/theme";
 import { StickerSource } from "./photobooth-strip";
 import PresetThumbnailTray, { ThumbnailItem } from "./preset-thumbnail-tray";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SvgComponent = React.FC<{
-  width?: number;
-  height?: number;
-  color?: string;
-}>;
-
-export type StickerId = "none" | "react" | "custom" | "star";
+export type StickerId = "none" | "custom" | "star";
 
 export interface StickerOption {
   id: StickerId;
@@ -24,7 +17,6 @@ export interface StickerOption {
   source?: StickerSource;
   color?: string;
   previewImageSource?: any;
-  PreviewSvg?: SvgComponent;
 }
 
 // ─── Sticker Definitions ──────────────────────────────────────────────────────
@@ -37,25 +29,15 @@ export const STICKER_OPTIONS: StickerOption[] = [
     height: 0,
   },
   {
-    id: "react",
-    label: "React",
-    source: {
-      kind: "image",
-      source: require("@/assets/images/react-logo.png"),
-    },
-    width: 50,
-    height: 50,
-    previewImageSource: require("@/assets/images/react-logo.png"),
-  },
-  // SVG sticker example:
-  {
     id: "star",
     label: "Star",
-    source: { kind: "svg", component: StarSvg },
+    source: {
+      kind: "image",
+      source: require("@/assets/stickers/star.png"),
+    },
     width: 40,
     height: 40,
-    color: "#FFD700",
-    PreviewSvg: StarSvg,
+    previewImageSource: require("@/assets/stickers/star.png"),
   },
 ];
 
@@ -68,16 +50,15 @@ function StickerThumbnail({
   option: StickerOption;
   active: boolean;
 }) {
-  const hasPreview = option.previewImageSource || option.PreviewSvg;
-
   return (
     <View style={[styles.thumbnail, active && styles.thumbnailActive]}>
       <View
-        style={[styles.imageContainer, !hasPreview && styles.noneContainer]}
+        style={[
+          styles.imageContainer,
+          !option.previewImageSource && styles.noneContainer,
+        ]}
       >
-        {option.PreviewSvg ? (
-          <option.PreviewSvg width={48} height={48} color={option.color} />
-        ) : option.previewImageSource ? (
+        {option.previewImageSource ? (
           <Image
             source={option.previewImageSource}
             style={styles.previewImage}
@@ -116,7 +97,6 @@ export default function StickerPickerTray({
     (index: number) => {
       const option = STICKER_OPTIONS[index];
       if (!option) return;
-      // "none" or tapping the active tile clears placement mode
       if (option.id === "none" || option.id === activeDef?.id) {
         onSelect(null);
       } else {
