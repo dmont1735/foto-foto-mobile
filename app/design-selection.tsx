@@ -16,23 +16,11 @@ import {
   ScreenHeader,
 } from "@/components/screen-layout";
 import { colors } from "@/styles/theme";
+import { generateBackgroundPngUri } from "@/utils/generate-background-png";
 import { StripBackground } from "@/utils/strip-layouts";
 import { useBackgroundImagePicker } from "@/utils/use-background-image-picker";
 import { router } from "expo-router";
 import { useSession } from "../context/session-context";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function layoutNameToType(name: string): LayoutType {
-  return name.split(" ")[1] as LayoutType;
-}
-
-function backgroundFromOption(opt: BackgroundImageOption): StripBackground {
-  if (opt.type === "svg") {
-    return { type: "svg", component: opt.component, color: opt.color };
-  }
-  return { type: "image", source: opt.source };
-}
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -66,7 +54,29 @@ export default function DesignSelectionScreen() {
     CARD_WIDTH / natural.width,
     CARD_HEIGHT / natural.height,
   );
+  // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+  function layoutNameToType(name: string): LayoutType {
+    return name.split(" ")[1] as LayoutType;
+  }
+
+  function backgroundFromOption(opt: BackgroundImageOption): StripBackground {
+    if (opt.type === "svg") {
+      return {
+        type: "svg",
+        component: opt.component,
+        color: opt.color,
+        generatePngUri: () =>
+          generateBackgroundPngUri(
+            opt.component,
+            opt.color,
+            natural.width,
+            natural.height,
+          ),
+      };
+    }
+    return { type: "image", source: opt.source };
+  }
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (

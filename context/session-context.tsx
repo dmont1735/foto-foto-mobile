@@ -1,6 +1,7 @@
 import { ImageTransform } from "@/components/photo-edit-sheet";
 import { StickerConfig } from "@/components/photobooth-strip";
 import { StickerId } from "@/components/sticker-picker-tray";
+import { generateBackgroundPngUri } from "@/utils/generate-background-png";
 import React, { createContext, useCallback, useContext, useState } from "react";
 import { Layout, StripBackground } from "../utils/strip-layouts";
 
@@ -37,8 +38,8 @@ export interface SessionState {
   background: StripBackground;
   filter: PhotoFilter;
   filterMatrix: number[];
-  stickerId: StickerId; // ← new
-  stickers: StickerConfig[]; // ← new
+  stickerId: StickerId;
+  stickers: StickerConfig[];
 }
 
 interface SessionContextValue {
@@ -57,9 +58,9 @@ interface SessionContextValue {
   updatePhotoTransform: (index: number, transform: ImageTransform) => void;
   removePhoto: (index: number) => void;
   setBackground: (background: StripBackground) => void;
-  setBackgroundColor: (color: string) => void;
+  setBackgroundColor: (color: string, width: number, height: number) => void;
   setFilter: (filter: PhotoFilter) => void;
-  setStickers: (id: StickerId, stickers: StickerConfig[]) => void; // ← new
+  setStickers: (id: StickerId, stickers: StickerConfig[]) => void;
   resetSession: () => void;
 }
 
@@ -71,8 +72,8 @@ const DEFAULT_SESSION: SessionState = {
   background: { type: "solid", color: "#ffffff" },
   filter: "none",
   filterMatrix: FILTERS.none,
-  stickerId: "none", // ← new
-  stickers: [], // ← new
+  stickerId: "none",
+  stickers: [],
 };
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -148,15 +149,38 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setSession((prev) => ({ ...prev, background }));
   }, []);
 
-  const setBackgroundColor = useCallback((color: string) => {
-    setSession((prev) => {
-      const bg = prev.background;
-      if (bg.type === "solid")
-        return { ...prev, background: { type: "solid", color } };
-      if (bg.type === "svg") return { ...prev, background: { ...bg, color } };
-      return prev;
-    });
-  }, []);
+  // session-context.ts
+  const setBackgroundColor = useCallback(
+    (color: string, width: number, height: number) => {
+      setSession((prev) => {
+        const bg = prev.background;
+        if (bg.type === "solid")
+          return { ...prev, background: { type: "solid", color } };
+        if (bg.type === "svg")
+          return {
+            ...prev,
+            background: {
+              ...bg,
+              color,
+              pngUri: undefined,
+              // generatePngUri is preserved by the spread — but it closes over
+              // the old `bg`. Fix: override it to close over the new object.
+              generatePngUri: (w?: number, h?: number) =>
+                bg.generatePngUri
+                  ? generateBackgroundPngUri(
+                      bg.component,
+                      color,
+                      width,
+                      h ?? height,
+                    )
+                  : Promise.resolve(""),
+            },
+          };
+        return prev;
+      });
+    },
+    [],
+  );
 
   const setFilter = useCallback((filter: PhotoFilter) => {
     setSession((prev) => ({
@@ -192,7 +216,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setBackground,
         setBackgroundColor,
         setFilter,
-        setStickers, // ← new
+        setStickers,
         resetSession,
       }}
     >

@@ -13,10 +13,16 @@ export type ImageBackground = {
   source: ImageSourcePropType;
 };
 
-export type SvgBackground = {
+type SvgBackground = {
   type: "svg";
-  component: React.FC<{ color: string; width: number; height: number }>;
-  color: string; // ← stored separately, mutated independently
+  component: React.FC<{
+    color: string;
+    width: number;
+    height: number;
+  }>;
+  color: string;
+  pngUri?: string | null;
+  generatePngUri?: (width: number, height: number) => Promise<string>;
 };
 
 export type StripBackground = SolidBackground | ImageBackground | SvgBackground;

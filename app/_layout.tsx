@@ -1,3 +1,4 @@
+import { OffscreenCaptureHost } from "@/utils/offscreen-capture";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -8,6 +9,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <SessionProvider>
+          <OffscreenCaptureHost />
           <Stack>
             <Stack.Screen
               name="index"
@@ -44,6 +46,10 @@ export default function RootLayout() {
             <Stack.Screen
               name="sticker-selection"
               options={{ title: "Sticker", headerShown: false }}
+            />
+            <Stack.Screen
+              name="exporter"
+              options={{ title: "Exporter", headerShown: false }}
             />
           </Stack>
         </SessionProvider>

@@ -407,7 +407,7 @@ export default function StickerPreviewScreen() {
       "custom",
       placedStickers.map(({ _id: _, ...s }) => s as StickerConfig),
     );
-    router.back();
+    router.push("/exporter");
   }, [placedStickers, setStickers]);
 
   return (

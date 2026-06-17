@@ -63,7 +63,7 @@ export default function ColorSelectionScreen() {
       return;
     }
 
-    setBackgroundColor(opt.color);
+    setBackgroundColor(opt.color, natural.width, natural.height);
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ export default function ColorSelectionScreen() {
         initialColor={colors.defaultBackgroundColor}
         onClose={() => setCustomPickerVisible(false)}
         onSubmit={(color) => {
-          setBackgroundColor(color);
+          setBackgroundColor(color, natural.width, natural.height);
         }}
       />
 
