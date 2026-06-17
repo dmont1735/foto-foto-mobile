@@ -105,6 +105,7 @@ export default function StickerPreviewScreen() {
   const type = layoutNameToType(session.layout.name);
   const natural = getStripNaturalSize(type);
   const scaleRatio = Math.min(
+    1,
     CARD_WIDTH / natural.width,
     CARD_HEIGHT / natural.height,
   );
