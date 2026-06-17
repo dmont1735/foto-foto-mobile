@@ -36,6 +36,15 @@ export interface SkiaStripExportProps {
   logo?: LogoConfig;
   filterMatrix?: number[];
   onReady?: () => void;
+  /**
+   * Multiplier applied to the entire canvas for export resolution.
+   * The on-screen layout math (computeLayout, slots, stickers, logo)
+   * is untouched — we just scale the whole render tree up via a
+   * top-level Group transform, then size the Canvas/View to match.
+   * 3 is a good default (sharp on most screens without huge file size).
+   * Bump to 4 for print-quality exports, drop to 2 to save memory.
+   */
+  exportScale?: number;
 }
 
 // ─── Layout constants (mirrored from photobooth-strip.tsx) ────────────────────
@@ -150,7 +159,13 @@ const LAYOUTS: Record<LayoutType, LayoutConfig> = {
 const DEFAULT_WIDTH_PORTRAIT = 320;
 const DEFAULT_WIDTH_LANDSCAPE = 600;
 
+// Default export resolution multiplier. Applied on top of the base
+// strip dimensions below via a Group transform in the component.
+const DEFAULT_EXPORT_SCALE = 3;
+
 // ─── Layout calculation ───────────────────────────────────────────────────────
+// NOTE: unchanged — still computes layout in base (1x) logical units.
+// Scaling to export resolution happens separately at render time.
 
 function computeLayout(type: LayoutType) {
   const config = LAYOUTS[type];
@@ -391,6 +406,7 @@ const PhotoboothStripSkiaExport = forwardRef<
     logo,
     filterMatrix,
     onReady,
+    exportScale = DEFAULT_EXPORT_SCALE,
   },
   ref,
 ) {
@@ -403,6 +419,12 @@ const PhotoboothStripSkiaExport = forwardRef<
     slots,
     defaultBackground,
   } = computeLayout(type);
+
+  // Physical canvas/view dimensions at export resolution.
+  // All drawing below still happens in base (1x) logical coordinates,
+  // wrapped in a single Group that scales everything up uniformly.
+  const canvasWidth = stripWidth * exportScale;
+  const canvasHeight = stripHeight * exportScale;
 
   const bgColor =
     background?.type === "solid" ? background.color : defaultBackground;
@@ -437,91 +459,93 @@ const PhotoboothStripSkiaExport = forwardRef<
   }, [bgImage, hasBackground]);
 
   return (
-    <View style={{ width: stripWidth, height: stripHeight }}>
+    <View style={{ width: canvasWidth, height: canvasHeight }}>
       <Canvas
         ref={canvasRef}
-        style={{ width: stripWidth, height: stripHeight }}
+        style={{ width: canvasWidth, height: canvasHeight }}
       >
-        {/* Strip background */}
-        <RoundedRect
-          x={0}
-          y={0}
-          width={stripWidth}
-          height={stripHeight}
-          r={stripRadius}
-          color={bgColor}
-        />
+        <Group transform={[{ scale: exportScale }]}>
+          {/* Strip background */}
+          <RoundedRect
+            x={0}
+            y={0}
+            width={stripWidth}
+            height={stripHeight}
+            r={stripRadius}
+            color={bgColor}
+          />
 
-        <Group
-          clip={rrect(
-            rect(0, 0, stripWidth, stripHeight),
-            stripRadius,
-            stripRadius,
-          )}
-        >
-          {bgImage && (
-            <Image
-              image={bgImage}
-              x={0}
-              y={0}
-              width={stripWidth}
-              height={stripHeight}
-              fit="fill"
-            />
-          )}
-        </Group>
+          <Group
+            clip={rrect(
+              rect(0, 0, stripWidth, stripHeight),
+              stripRadius,
+              stripRadius,
+            )}
+          >
+            {bgImage && (
+              <Image
+                image={bgImage}
+                x={0}
+                y={0}
+                width={stripWidth}
+                height={stripHeight}
+                fit="fill"
+              />
+            )}
+          </Group>
 
-        <Group
-          clip={rrect(
-            rect(0, 0, stripWidth, stripHeight),
-            stripRadius,
-            stripRadius,
-          )}
-        >
-          {/* Slot placeholder backgrounds */}
-          {slots.map((slot) => (
-            <RoundedRect
-              key={slot.index}
-              x={slot.x}
-              y={slot.y}
-              width={slot.width}
-              height={slot.height}
-              r={slotRadius}
-              color="#F0F0F0"
-            />
-          ))}
-
-          {/* Slot photos with filter */}
-          {slots.map((slot) => {
-            const photo = images[slot.index];
-            if (!photo?.uri) return null;
-            return (
-              <SlotImage
+          <Group
+            clip={rrect(
+              rect(0, 0, stripWidth, stripHeight),
+              stripRadius,
+              stripRadius,
+            )}
+          >
+            {/* Slot placeholder backgrounds */}
+            {slots.map((slot) => (
+              <RoundedRect
                 key={slot.index}
-                photo={photo}
                 x={slot.x}
                 y={slot.y}
                 width={slot.width}
                 height={slot.height}
-                slotRadius={slotRadius}
-                filterMatrix={filterMatrix}
+                r={slotRadius}
+                color="#F0F0F0"
               />
-            );
-          })}
+            ))}
 
-          {/* Stickers */}
-          {stickers.map((sticker, i) => (
-            <StickerImage key={i} sticker={sticker} />
-          ))}
+            {/* Slot photos with filter */}
+            {slots.map((slot) => {
+              const photo = images[slot.index];
+              if (!photo?.uri) return null;
+              return (
+                <SlotImage
+                  key={slot.index}
+                  photo={photo}
+                  x={slot.x}
+                  y={slot.y}
+                  width={slot.width}
+                  height={slot.height}
+                  slotRadius={slotRadius}
+                  filterMatrix={filterMatrix}
+                />
+              );
+            })}
 
-          {/* Logo */}
-          {logo && (
-            <LogoImage
-              logo={logo}
-              stripWidth={stripWidth}
-              stripHeight={stripHeight}
-            />
-          )}
+            {/* Stickers */}
+            {stickers.map((sticker, i) => (
+              <StickerImage key={i} sticker={sticker} />
+            ))}
+
+            {/* Logo */}
+            {logo && (
+              <LogoImage
+                logo={logo}
+                stripWidth={stripWidth}
+                stripHeight={stripHeight}
+              />
+            )}
+          </Group>
         </Group>
       </Canvas>
     </View>

@@ -85,7 +85,7 @@ export default function ExporterScreen() {
     try {
       // Write base64 to a temp file then save to the media library
       const base64 = dataUri.replace("data:image/png;base64,", "");
-      const tmpPath = `${FileSystem.cacheDirectory}strip-export.png`;
+      const tmpPath = `${FileSystem.cacheDirectory}photobooth-export.png`;
       await FileSystem.writeAsStringAsync(tmpPath, base64, {
         encoding: FileSystem.EncodingType.Base64,
       });
