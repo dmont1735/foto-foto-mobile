@@ -33,13 +33,15 @@ function layoutNameToType(name: string): LayoutType {
 export default function ExporterScreen() {
   const { session } = useSession();
   const skiaRef = useRef<SkiaStripExportHandle>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   // ── Pre-generate SVG background PNG ────────────────────────────────────────
   const [bgReady, setBgReady] = useState(
     session.background?.type !== "svg", // non-SVG backgrounds are immediately ready
   );
   const [canvasReady, setCanvasReady] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
+    "idle",
+  );
 
   useEffect(() => {
     const bg = session.background;
@@ -66,6 +68,8 @@ export default function ExporterScreen() {
   }, []);
 
   const handleSave = useCallback(async () => {
+    setSaveStatus("saving");
+
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== "granted") {
       Alert.alert(
@@ -81,7 +85,6 @@ export default function ExporterScreen() {
       return;
     }
 
-    setIsSaving(true);
     try {
       // Write base64 to a temp file then save to the media library
       const base64 = dataUri.replace("data:image/png;base64,", "");
@@ -90,14 +93,18 @@ export default function ExporterScreen() {
         encoding: FileSystem.EncodingType.Base64,
       });
       await MediaLibrary.saveToLibraryAsync(tmpPath);
-      Alert.alert("Saved!", "Your photo strip has been saved to your photos.");
+      setSaveStatus("saved");
+
+      setTimeout(() => {
+        setSaveStatus("idle");
+      }, 2000);
     } catch {
       Alert.alert(
         "Error",
         "Something went wrong while saving. Please try again.",
       );
     } finally {
-      setIsSaving(false);
+      setSaveStatus("saved");
     }
   }, []);
 
@@ -118,7 +125,7 @@ export default function ExporterScreen() {
       <ScreenHeader title="Share your creation" />
       <PreviewSection>
         <PreviewSlide>
-          <PreviewCard isLoading={isSaving}>
+          <PreviewCard isLoading={saveStatus !== "idle"}>
             {/* Visible preview — unchanged, uses scaleRatio as before */}
             <PhotoboothStrip
               type={type}
@@ -134,7 +141,13 @@ export default function ExporterScreen() {
       </PreviewSection>
 
       <ScreenFooter
-        label={isSaving ? "Saving..." : "Save to gallery"}
+        label={
+          saveStatus === "saving"
+            ? "Saving..."
+            : saveStatus === "saved"
+              ? "✓ Saved to gallery"
+              : "Save to gallery"
+        }
         onPress={handleSave}
         accentColor={colors.accent}
       />
@@ -179,5 +192,20 @@ const styles = StyleSheet.create({
     top: -9999,
     left: -9999,
     opacity: 0,
+  },
+  toast: {
+    position: "absolute",
+    bottom: 100,
+    alignSelf: "center",
+    backgroundColor: "rgba(0,0,0,0.85)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+
+  toastText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
