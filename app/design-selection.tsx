@@ -20,6 +20,7 @@ import { generateBackgroundPngUri } from "@/utils/generate-background-png";
 import { StripBackground } from "@/utils/strip-layouts";
 import { useBackgroundImagePicker } from "@/utils/use-background-image-picker";
 import { router } from "expo-router";
+import { useEffect } from "react";
 import { useSession } from "../context/session-context";
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -54,6 +55,24 @@ export default function DesignSelectionScreen() {
     CARD_WIDTH / natural.width,
     CARD_HEIGHT / natural.height,
   );
+
+  useEffect(() => {
+    const bg = session.background;
+    if (bg.type === "svg" && !bg.generatePngUri) {
+      setBackground({
+        type: "svg",
+        component: bg.component,
+        color: bg.color,
+        generatePngUri: () =>
+          generateBackgroundPngUri(
+            bg.component,
+            bg.color,
+            natural.width,
+            natural.height,
+          ),
+      });
+    }
+  }, [type]);
   // ─── Helpers ──────────────────────────────────────────────────────────────────
 
   function layoutNameToType(name: string): LayoutType {
