@@ -1,13 +1,26 @@
-import { useCallback } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 
-import { colors as themeColors } from "@/styles/theme";
+import { buttonStickers } from "@/assets/stickers";
+import { colors, colors as themeColors } from "@/styles/theme";
+import GridIcon from "./icons/grid-icon";
 import { StickerSource } from "./photobooth-strip";
-import PresetThumbnailTray, { ThumbnailItem } from "./preset-thumbnail-tray";
+import PresetThumbnailTray, {
+  THUMBNAIL_HEIGHT,
+  THUMBNAIL_WIDTH,
+  ThumbnailItem,
+} from "./preset-thumbnail-tray";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+const ALL_STICKERS = [...buttonStickers] as const;
 
-export type StickerId = "none" | "custom" | "star";
+export type StickerId =
+  | (typeof ALL_STICKERS)[number]["id"]
+  | "none"
+  | "star"
+  | "custom";
+
+export type StickerCategory = "stars" | "buttons";
 
 export interface StickerOption {
   id: StickerId;
@@ -19,29 +32,42 @@ export interface StickerOption {
   previewImageSource?: any;
 }
 
-// ─── Sticker Definitions ──────────────────────────────────────────────────────
+// ─── Category Definitions ─────────────────────────────────────────────────────
 
-export const STICKER_OPTIONS: StickerOption[] = [
-  {
-    id: "none",
-    label: "None",
-    width: 0,
-    height: 0,
-  },
-  {
-    id: "star",
-    label: "Star",
-    source: {
-      kind: "image",
-      source: require("@/assets/stickers/star.png"),
+const CATEGORY_ORDER: StickerCategory[] = ["stars", "buttons"];
+export const STICKERS_BY_CATEGORY: Record<StickerCategory, StickerOption[]> = {
+  stars: [
+    {
+      id: "star",
+      label: "Star",
+      source: { kind: "image", source: require("@/assets/stickers/star.png") },
+      width: 40,
+      height: 40,
+      previewImageSource: require("@/assets/stickers/star.png"),
     },
-    width: 40,
-    height: 40,
-    previewImageSource: require("@/assets/stickers/star.png"),
-  },
-];
+  ],
+  buttons: buttonStickers.map((s) => ({
+    ...s,
+    width: 100,
+    height: 100,
+    source: s.source,
+    previewImageSource: s.source.source,
+  })),
+};
 
-// ─── Thumbnail ────────────────────────────────────────────────────────────────
+// ─── Category Switch Button ───────────────────────────────────────────────────
+
+function CategorySwitchThumbnail({ category }: { category: StickerCategory }) {
+  return (
+    <View style={styles.thumbnail}>
+      <View style={styles.switchContainer}>
+        <GridIcon size={35} color={themeColors.accent} />
+      </View>
+    </View>
+  );
+}
+
+// ─── Sticker Thumbnail ────────────────────────────────────────────────────────
 
 function StickerThumbnail({
   option,
@@ -52,20 +78,13 @@ function StickerThumbnail({
 }) {
   return (
     <View style={[styles.thumbnail, active && styles.thumbnailActive]}>
-      <View
-        style={[
-          styles.imageContainer,
-          !option.previewImageSource && styles.noneContainer,
-        ]}
-      >
-        {option.previewImageSource ? (
+      <View style={[styles.imageContainer]}>
+        {option.previewImageSource && (
           <Image
             source={option.previewImageSource}
             style={styles.previewImage}
             resizeMode="contain"
           />
-        ) : (
-          <View style={styles.noneLine} />
         )}
       </View>
     </View>
@@ -81,36 +100,65 @@ export default function StickerPickerTray({
   activeDef: StickerOption | null;
   onSelect: (def: StickerOption | null) => void;
 }) {
-  const activeIndex = STICKER_OPTIONS.findIndex(
-    (s) => s.id === (activeDef?.id ?? "none"),
-  );
+  const [activeCategory, setActiveCategory] =
+    useState<StickerCategory>("stars");
 
-  const items: ThumbnailItem[] = STICKER_OPTIONS.map((option, index) => ({
-    id: option.id,
-    accentColor: themeColors.accent,
-    thumbnail: (
-      <StickerThumbnail option={option} active={index === activeIndex} />
-    ),
-  }));
+  const stickers = STICKERS_BY_CATEGORY[activeCategory];
 
-  const handleSelect = useCallback(
+  const activeIndex = activeDef
+    ? stickers.findIndex((s) => s.id === activeDef.id) + 1
+    : 0;
+
+  const handleCycleCategory = useCallback(() => {
+    setActiveCategory((prev) => {
+      const idx = CATEGORY_ORDER.indexOf(prev);
+      return CATEGORY_ORDER[(idx + 1) % CATEGORY_ORDER.length];
+    });
+    // Clear selection when switching categories
+    onSelect(null);
+  }, [onSelect]);
+
+  const handleSelectSticker = useCallback(
     (index: number) => {
-      const option = STICKER_OPTIONS[index];
+      if (index === 0) {
+        handleCycleCategory();
+        return;
+      }
+      const option = stickers[index - 1];
       if (!option) return;
-      if (option.id === "none" || option.id === activeDef?.id) {
+      if (option.id === activeDef?.id) {
         onSelect(null);
       } else {
         onSelect(option);
       }
     },
-    [activeDef, onSelect],
+    [stickers, activeDef, onSelect, handleCycleCategory],
   );
+
+  const items: ThumbnailItem[] = [
+    {
+      id: "category-switch",
+      accentColor: themeColors.accent,
+      thumbnail: (
+        <TouchableOpacity onPress={handleCycleCategory} activeOpacity={0.7}>
+          <CategorySwitchThumbnail category={activeCategory} />
+        </TouchableOpacity>
+      ),
+    },
+    ...stickers.map((option, index) => ({
+      id: option.id,
+      accentColor: themeColors.accent,
+      thumbnail: (
+        <StickerThumbnail option={option} active={index + 1 === activeIndex} />
+      ),
+    })),
+  ];
 
   return (
     <PresetThumbnailTray
       items={items}
       activeIndex={activeIndex}
-      onSelect={handleSelect}
+      onSelect={handleSelectSticker}
     />
   );
 }
@@ -128,12 +176,11 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   imageContainer: {
-    width: 72,
-    height: 72,
+    width: THUMBNAIL_WIDTH,
+    height: THUMBNAIL_HEIGHT,
     overflow: "hidden",
-    borderRadius: 12,
-    marginBottom: 6,
-    backgroundColor: "#222",
+    borderRadius: 10,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -141,14 +188,25 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
   },
-  noneContainer: {
-    backgroundColor: "#1a1a1a",
+  stickerLabel: {
+    fontSize: 10,
+    color: "#aaa",
+    textAlign: "center",
   },
-  noneLine: {
-    width: 36,
-    height: 2,
-    backgroundColor: "#555",
-    borderRadius: 1,
-    transform: [{ rotate: "45deg" }],
+
+  switchContainer: {
+    width: THUMBNAIL_WIDTH,
+    height: THUMBNAIL_HEIGHT,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: themeColors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  switchLabel: {
+    fontSize: 10,
+    color: "#aaa",
+    textAlign: "center",
   },
 });
