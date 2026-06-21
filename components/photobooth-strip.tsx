@@ -4,7 +4,6 @@ import {
   ImageSourcePropType,
   Pressable,
   StyleSheet,
-  Text,
   View,
   ViewStyle,
 } from "react-native";
@@ -406,7 +405,7 @@ const PhotoSlot: React.FC<{
           </View>
         </View>
       ) : (
-        <Text style={styles.emptyLabel}>Empty</Text>
+        <></>
       )}
     </Pressable>
   );
@@ -644,13 +643,13 @@ export const PhotoboothStrip: React.FC<PhotoboothStripProps> = ({
 
 const styles = StyleSheet.create({
   slot: {
-    backgroundColor: "#F0F0F0",
+    backgroundColor: "#000000ff",
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
   emptyLabel: {
-    color: "#999",
+    color: "#000000ff",
     fontSize: 18,
   },
 });

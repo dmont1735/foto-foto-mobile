@@ -40,7 +40,11 @@ export type Layout = {
 
 // ─── Layouts ──────────────────────────────────────────────────────────────────
 
+import { PALETTE } from "@/app/color-selection";
+import CheckeredBackground from "@/components/backgrounds/CheckeredBackground";
 import PlaidBackground from "@/components/backgrounds/PlaidBackground";
+import PolkaDotBackground from "@/components/backgrounds/PolkaDotBackground";
+import StripedBackground from "@/components/backgrounds/StripedBackground";
 
 export const LAYOUTS: Layout[] = [
   {
@@ -65,7 +69,11 @@ export const LAYOUTS: Layout[] = [
     source: require("../assets/previews/vertical/Layout C.png"),
     numberOfSlots: 4,
     orientation: "portrait",
-    defaultBackground: { type: "solid", color: "#23ca3f" },
+    defaultBackground: {
+      type: "svg",
+      component: PlaidBackground,
+      color: PALETTE[0].color,
+    },
   },
   {
     name: "Layout D",
@@ -73,7 +81,11 @@ export const LAYOUTS: Layout[] = [
     source: require("../assets/previews/vertical/Layout D.png"),
     numberOfSlots: 6,
     orientation: "portrait",
-    defaultBackground: { type: "solid", color: "#fa2f2f" },
+    defaultBackground: {
+      type: "svg",
+      component: PolkaDotBackground,
+      color: PALETTE[1].color,
+    },
   },
   {
     name: "Layout E",
@@ -81,7 +93,11 @@ export const LAYOUTS: Layout[] = [
     source: require("../assets/previews/horizontal/Layout E.png"),
     numberOfSlots: 3,
     orientation: "landscape",
-    defaultBackground: { type: "solid", color: "#f86ad5" },
+    defaultBackground: {
+      type: "svg",
+      component: CheckeredBackground,
+      color: PALETTE[2].color,
+    },
   },
   {
     name: "Layout F",
@@ -91,8 +107,8 @@ export const LAYOUTS: Layout[] = [
     orientation: "landscape",
     defaultBackground: {
       type: "svg",
-      color: "#fca2d5",
-      component: PlaidBackground,
+      component: StripedBackground,
+      color: PALETTE[3].color,
     },
   },
 ];

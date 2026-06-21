@@ -1,3 +1,4 @@
+import { PALETTE } from "@/app/color-selection";
 import { BackgroundImageOption } from "@/components/background-picker-tray";
 import CheckeredBackground from "@/components/backgrounds/CheckeredBackground";
 import PlaidBackground from "@/components/backgrounds/PlaidBackground";
@@ -31,21 +32,21 @@ export const PRESET_BACKGROUNDS: BackgroundImageOption[] = [
     id: "preset-polka-dots",
     type: "svg",
     component: PolkaDotBackground,
-    color: colors.defaultBackgroundColor,
+    color: PALETTE[1].color,
     label: "Polka Dots",
   },
   {
     id: "preset-checkered",
     type: "svg",
     component: CheckeredBackground,
-    color: colors.defaultBackgroundColor,
+    color: PALETTE[2].color,
     label: "Checkered",
   },
   {
     id: "preset-striped",
     type: "svg",
     component: StripedBackground,
-    color: colors.defaultBackgroundColor,
+    color: PALETTE[3].color,
     label: "Striped",
   },
 ];

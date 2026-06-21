@@ -22,8 +22,8 @@ import { useSession } from "../context/session-context";
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
-const PALETTE: ColorOption[] = [
-  { id: "rose", color: "#FF6B6B", label: "Rose" },
+export const PALETTE: ColorOption[] = [
+  { id: "rose", color: colors.defaultBackgroundColor, label: "Red" },
   { id: "amber", color: "#FFAA33", label: "Amber" },
   { id: "sage", color: "#6BCB77", label: "Sage" },
   { id: "sky", color: "#4D96FF", label: "Sky" },

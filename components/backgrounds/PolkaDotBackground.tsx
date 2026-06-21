@@ -21,7 +21,7 @@ const PolkaDotBackground: React.FC<Props> = ({ color, width, height }) => (
         <Rect width={tile} height={tile} fill="#fff0f5" />
         <Circle
           cx={tile / 2}
-          cy={tile / 2}
+          cy={tile / 1.5}
           r={tile * 0.25}
           fill={color}
           opacity={0.8}

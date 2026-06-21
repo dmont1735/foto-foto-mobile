@@ -26,7 +26,12 @@ export type BackgroundImageOption =
   | {
       id: string;
       type: "svg";
-      component: React.FC<{ color: string; width: number; height: number }>;
+      component: React.FC<{
+        color: string;
+        width: number;
+        height: number;
+        onUri?: (uri: string) => void;
+      }>;
       color: string;
       label: string;
     };
@@ -35,7 +40,6 @@ export interface BackgroundImageTrayProps {
   presets: BackgroundImageOption[];
   customImages: BackgroundImageOption[];
   activeId: string | null;
-  color: string;
   accentColor?: string;
   leadingItem?: ReactNode;
   onSelect: (option: BackgroundImageOption) => void;
@@ -87,13 +91,11 @@ const BackgroundImageTray: React.FC<BackgroundImageTrayProps> = ({
   presets,
   customImages,
   activeId,
-  color,
-  accentColor,
   leadingItem,
   onSelect,
   onRequestCustomImage,
 }) => {
-  const accent = accentColor ?? colors.accent;
+  const accent = colors.accent;
   const allOptions = [...customImages, ...presets];
 
   const leadingTrayItems: ThumbnailItem[] = leadingItem
@@ -114,10 +116,10 @@ const BackgroundImageTray: React.FC<BackgroundImageTrayProps> = ({
 
   const imageThumbnailItems: ThumbnailItem[] = allOptions.map((opt) => ({
     id: opt.id,
-    accentColor: accent,
+    accentColor: colors.accent,
     thumbnail:
       opt.type === "svg" ? (
-        <SvgThumbnailContent color={color} component={opt.component} />
+        <SvgThumbnailContent color={opt.color} component={opt.component} />
       ) : (
         <ImageThumbnailContent source={opt.source} />
       ),

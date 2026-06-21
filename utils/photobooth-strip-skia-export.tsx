@@ -510,7 +510,7 @@ const PhotoboothStripSkiaExport = forwardRef<
                 width={slot.width}
                 height={slot.height}
                 r={slotRadius}
-                color="#F0F0F0"
+                color="#000000ff"
               />
             ))}
 

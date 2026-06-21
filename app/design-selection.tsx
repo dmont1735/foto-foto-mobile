@@ -122,7 +122,6 @@ export default function DesignSelectionScreen() {
         presets={imagePicker.presets}
         customImages={imagePicker.customImages}
         onRequestCustomImage={handleRequestCustomImage}
-        color={colors.defaultBackgroundColor}
         accentColor={colors.accent}
         activeId={null}
         onSelect={handleImageSelect}
