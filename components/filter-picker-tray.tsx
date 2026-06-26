@@ -33,7 +33,10 @@ function FilterThumbnail({
   active: boolean;
 }) {
   return (
-    <View style={[styles.thumbnail, active && styles.thumbnailActive]}>
+    <View
+      style={[styles.thumbnail, active && styles.thumbnailActive]}
+      pointerEvents="none"
+    >
       {uri ? (
         <View style={styles.imageContainer}>
           <FilteredImage uri={uri} matrix={matrix} width={72} height={72} />
