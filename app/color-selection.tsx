@@ -41,19 +41,21 @@ function layoutNameToType(name: string): LayoutType {
 export default function ColorSelectionScreen() {
   const { session, setBackgroundColor } = useSession();
   const { layout, photos } = session;
+
+  // Derive safely before hooks
+  const type = layout ? layoutNameToType(layout.name) : null;
+  const natural = type ? getStripNaturalSize(type) : { width: 1, height: 1 };
+  const scaleRatio = type
+    ? Math.min(CARD_WIDTH / natural.width, CARD_HEIGHT / natural.height)
+    : 1;
+
+  // ── Hooks — all unconditionally above any guard ──────────────────────────
+
   const [customPickerVisible, setCustomPickerVisible] = useState(false);
 
-  if (!layout) return null;
+  // ── Guard — after all hooks ──────────────────────────────────────────────
 
-  const type = layoutNameToType(layout.name);
-
-  const images = photos;
-
-  const natural = getStripNaturalSize(type);
-  const scaleRatio = Math.min(
-    CARD_WIDTH / natural.width,
-    CARD_HEIGHT / natural.height,
-  );
+  if (!layout || !type) return null;
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -62,7 +64,6 @@ export default function ColorSelectionScreen() {
       setCustomPickerVisible(true);
       return;
     }
-
     setBackgroundColor(opt.color, natural.width, natural.height);
   };
 
@@ -80,7 +81,7 @@ export default function ColorSelectionScreen() {
           <PreviewCard>
             <PhotoboothStrip
               type={type}
-              images={images}
+              images={photos}
               background={session.background}
               scaleRatio={scaleRatio}
             />

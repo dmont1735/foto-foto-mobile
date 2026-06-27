@@ -1,3 +1,4 @@
+import { useSession } from "@/context/session-context";
 import { router } from "expo-router";
 import {
   Image,
@@ -11,6 +12,12 @@ import { globalStyles } from "../styles/global";
 
 export default function Index() {
   const { width, height } = useWindowDimensions();
+  // const { resetData } = useLocalSearchParams<{ resetData?: string }>();
+  const { resetSession } = useSession();
+
+  // if (resetData === "true") {
+  //   resetSession();
+  // }
 
   return (
     <View

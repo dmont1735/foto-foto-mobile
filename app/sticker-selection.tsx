@@ -39,7 +39,6 @@ interface PlacedSticker extends StickerConfig {
 }
 
 // ─── Draggable sticker overlay ────────────────────────────────────────────────
-// Purely visual — no touch handling here. All gestures are on the parent strip.
 
 const DraggableSticker: React.FC<{
   sticker: PlacedSticker;
@@ -61,21 +60,17 @@ const DraggableSticker: React.FC<{
         width: displayW,
         height: displayH,
         transform: [{ rotate: `${sticker.rotation ?? 0}deg` }],
-        // Let touches fall through to the strip container
         pointerEvents: "box-none",
       }}
     >
       {selected && (
         <View style={[StyleSheet.absoluteFillObject, styles.selectionBorder]} />
       )}
-
-      {/* Delete button is the only interactive element — needs its own touch */}
       {selected && (
         <Pressable
           onPress={() => onDelete(sticker._id)}
           style={styles.deleteButton}
           hitSlop={12}
-          // Re-enable pointer events just for this button
           pointerEvents="box-only"
         >
           <Text style={styles.controlLabel}>✕</Text>
@@ -90,28 +85,25 @@ const DraggableSticker: React.FC<{
 export default function StickerPreviewScreen() {
   const { session, setStickers } = useSession();
 
+  // Derive safely before hooks
+  const type = session.layout ? layoutNameToType(session.layout.name) : null;
+  const natural = type ? getStripNaturalSize(type) : { width: 1, height: 1 };
+  const scaleRatio = type
+    ? Math.min(1, CARD_WIDTH / natural.width, CARD_HEIGHT / natural.height)
+    : 1;
+  const displayW = natural.width * scaleRatio;
+  const displayH = natural.height * scaleRatio;
+
+  // ── Hooks — all unconditionally above any guard ──────────────────────────
+
   const [placedStickers, setPlacedStickers] = useState<PlacedSticker[]>(() =>
     (session.stickers ?? []).map((s, i) => ({
       ...s,
       _id: `s-${i}-${Date.now()}`,
     })),
   );
-
   const [activeDef, setActiveDef] = useState<StickerOption | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  if (!session.layout || session.photos.length === 0) return null;
-
-  const type = layoutNameToType(session.layout.name);
-  const natural = getStripNaturalSize(type);
-  const scaleRatio = Math.min(
-    1,
-    CARD_WIDTH / natural.width,
-    CARD_HEIGHT / natural.height,
-  );
-
-  const displayW = natural.width * scaleRatio;
-  const displayH = natural.height * scaleRatio;
 
   const stripViewRef = useRef<View>(null);
   const stripPageOrigin = useRef({ x: 0, y: 0 });
@@ -145,23 +137,20 @@ export default function StickerPreviewScreen() {
     setSelectedId,
   };
 
-  // ── Unified gesture state (never stale — lives in refs) ───────────────────
+  // ── Gesture state refs ────────────────────────────────────────────────────
 
-  // Single-finger drag
   const dragState = useRef<{
     stickerId: string;
     lastX: number;
     lastY: number;
   } | null>(null);
 
-  // Two-finger pinch + rotate
   const pinchState = useRef<{
     stickerId: string;
     lastDist: number;
     lastAngle: number;
   } | null>(null);
 
-  // Tap detection (no movement)
   const tapState = useRef<{
     startX: number;
     startY: number;
@@ -205,7 +194,7 @@ export default function StickerPreviewScreen() {
     y: pageY - stripPageOrigin.current.y,
   });
 
-  // ── Touch handlers on the strip container ────────────────────────────────
+  // ── Touch handlers ────────────────────────────────────────────────────────
 
   const handleTouchStart = useCallback((e: any) => {
     const touches = e.nativeEvent.touches;
@@ -220,7 +209,6 @@ export default function StickerPreviewScreen() {
     } = liveRefs.current;
 
     if (touches.length === 2) {
-      // Two fingers — start pinch on whatever is selected, or hit-test
       const t0 = touches[0];
       const local = toLocal(t0.pageX, t0.pageY);
       const hit =
@@ -237,7 +225,6 @@ export default function StickerPreviewScreen() {
         };
         setSelectedId(hit._id);
       }
-      // Cancel any ongoing drag
       dragState.current = null;
       tapState.current = null;
       return;
@@ -246,12 +233,8 @@ export default function StickerPreviewScreen() {
     if (touches.length === 1) {
       const t = touches[0];
       const local = toLocal(t.pageX, t.pageY);
-
       tapState.current = { startX: t.pageX, startY: t.pageY, moved: false };
-
-      // Placement mode
       if (def?.source) return;
-
       const hit = hitTestSticker(local.x, local.y);
       if (hit) {
         dragState.current = {
@@ -344,12 +327,10 @@ export default function StickerPreviewScreen() {
       setSelectedId,
     } = liveRefs.current;
 
-    // Pinch ended
     if (touches.length < 2) {
       pinchState.current = null;
     }
 
-    // All fingers lifted
     if (touches.length === 0) {
       const tap = tapState.current;
       tapState.current = null;
@@ -357,7 +338,6 @@ export default function StickerPreviewScreen() {
 
       if (!tap) return;
 
-      // Placement mode tap
       if (def?.source) {
         const local = toLocal(tap.startX, tap.startY);
         const stripX = local.x / sr - def.width / 2;
@@ -378,30 +358,22 @@ export default function StickerPreviewScreen() {
         return;
       }
 
-      // It was a tap (not a drag)
       if (!tap.moved) {
         const local = toLocal(tap.startX, tap.startY);
         const hit = hitTestSticker(local.x, local.y);
         if (hit) {
-          // Toggle selection
           setSelectedId(hit._id === selId ? null : hit._id);
         } else {
-          // Tapped empty strip — deselect
           setSelectedId(null);
         }
       }
     }
   }, []);
 
-  // ── Move / resize / delete ────────────────────────────────────────────────
-  // (kept as callbacks so DraggableSticker delete button can call them)
-
   const handleDelete = useCallback((id: string) => {
     setPlacedStickers((prev) => prev.filter((s) => s._id !== id));
     setSelectedId(null);
   }, []);
-
-  // ── Commit to session ─────────────────────────────────────────────────────
 
   const handleContinue = useCallback(() => {
     setStickers(
@@ -410,6 +382,12 @@ export default function StickerPreviewScreen() {
     );
     router.push("/exporter");
   }, [placedStickers, setStickers]);
+
+  // ── Guard — after all hooks ──────────────────────────────────────────────
+
+  if (!session.layout || !type || session.photos.length === 0) return null;
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <ScreenContainer>

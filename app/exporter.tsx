@@ -18,6 +18,8 @@ import PhotoboothStripSkiaExport, {
 } from "@/utils/photobooth-strip-skia-export";
 import * as FileSystem from "expo-file-system/legacy";
 import * as MediaLibrary from "expo-media-library";
+import { router } from "expo-router";
+import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { useSession } from "../context/session-context";
@@ -28,26 +30,30 @@ function layoutNameToType(name: string): LayoutType {
   return name.split(" ")[1] as LayoutType;
 }
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type ActionStatus = "idle" | "busy" | "done";
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function ExporterScreen() {
-  const { session } = useSession();
+  const { session, resetSession } = useSession();
   const skiaRef = useRef<SkiaStripExportHandle>(null);
 
-  // ── Pre-generate SVG background PNG ────────────────────────────────────────
-  const [bgReady, setBgReady] = useState(
-    session.background?.type !== "svg", // non-SVG backgrounds are immediately ready
-  );
+  // Derive type safely so all hooks below run unconditionally
+  const type = session.layout ? layoutNameToType(session.layout.name) : null;
+
+  const [bgReady, setBgReady] = useState(session.background?.type !== "svg");
   const [canvasReady, setCanvasReady] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
-    "idle",
-  );
+  const [saveStatus, setSaveStatus] = useState<ActionStatus>("idle");
+  const [shareStatus, setShareStatus] = useState<ActionStatus>("idle");
 
   useEffect(() => {
+    if (!type) return;
+
     const bg = session.background;
     if (bg?.type !== "svg") return;
 
-    // Already generated — nothing to do
     if (bg.pngUri) {
       setBgReady(true);
       return;
@@ -61,56 +67,80 @@ export default function ExporterScreen() {
     const { width, height } = getStripNaturalSize(type);
     bg.generatePngUri(width, height)
       .then((uri) => {
-        bg.pngUri = uri; // cache onto the object for future screens
+        bg.pngUri = uri;
         setBgReady(true);
       })
-      .catch(() => setBgReady(true)); // fail open — export without bg rather than blocking
+      .catch(() => setBgReady(true));
+  }, [type]);
+
+  // ── Shared capture primitive ─────────────────────────────────────────────
+
+  const captureToTempFile = useCallback(async (): Promise<string> => {
+    const dataUri = skiaRef.current?.capture();
+    if (!dataUri) throw new Error("Capture failed");
+
+    const base64 = dataUri.replace("data:image/png;base64,", "");
+    const tmpPath = `${FileSystem.cacheDirectory}photobooth-export.png`;
+    await FileSystem.writeAsStringAsync(tmpPath, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return tmpPath;
   }, []);
+
+  // ── Save to library ──────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
-    setSaveStatus("saving");
-
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission required",
-        "Please allow access to your photo library to save the strip.",
-      );
-      return;
-    }
-
-    const dataUri = skiaRef.current?.capture();
-    if (!dataUri) {
-      Alert.alert("Error", "Could not capture the strip. Please try again.");
-      return;
-    }
-
+    setSaveStatus("busy");
     try {
-      // Write base64 to a temp file then save to the media library
-      const base64 = dataUri.replace("data:image/png;base64,", "");
-      const tmpPath = `${FileSystem.cacheDirectory}photobooth-export.png`;
-      await FileSystem.writeAsStringAsync(tmpPath, base64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      await MediaLibrary.saveToLibraryAsync(tmpPath);
-      setSaveStatus("saved");
-
-      setTimeout(() => {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission required",
+          "Please allow access to your photo library to save the strip.",
+        );
         setSaveStatus("idle");
-      }, 2000);
+        return;
+      }
+
+      const tmpPath = await captureToTempFile();
+      await MediaLibrary.saveToLibraryAsync(tmpPath);
+      setSaveStatus("done");
+      setTimeout(() => setSaveStatus("idle"), 2000);
     } catch {
-      Alert.alert(
-        "Error",
-        "Something went wrong while saving. Please try again.",
-      );
-    } finally {
-      setSaveStatus("saved");
+      Alert.alert("Error", "Could not save to gallery. Please try again.");
+      setSaveStatus("idle");
     }
-  }, []);
+  }, [captureToTempFile]);
 
-  if (!session.layout) return null;
+  // ── Share via sheet ──────────────────────────────────────────────────────
 
-  const type = layoutNameToType(session.layout.name);
+  const handleShare = useCallback(async () => {
+    setShareStatus("busy");
+    try {
+      const tmpPath = await captureToTempFile();
+      await Sharing.shareAsync(tmpPath, {
+        mimeType: "image/png",
+        dialogTitle: "Share your photobooth strip",
+      });
+      setShareStatus("done");
+      setTimeout(() => setShareStatus("idle"), 2000);
+    } catch {
+      Alert.alert("Error", "Could not share. Please try again.");
+      setShareStatus("idle");
+    }
+  }, [captureToTempFile]);
+
+  // ── Reset ────────────────────────────────────────────────────────────────
+
+  const handleReset = useCallback(() => {
+    router.replace("/");
+    // Reset after navigation has begun so this screen doesn't re-render with null session
+    setTimeout(() => resetSession(), 0);
+  }, [resetSession]);
+
+  // ── Guard — after all hooks, before render ───────────────────────────────
+
+  if (!type) return null;
 
   const natural = getStripNaturalSize(type);
   const scaleRatio = Math.min(
@@ -118,15 +148,17 @@ export default function ExporterScreen() {
     CARD_HEIGHT / natural.height,
   );
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  const isAnythingBusy = saveStatus === "busy" || shareStatus === "busy";
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <ScreenContainer>
       <ScreenHeader title="Share your creation" />
+
       <PreviewSection>
         <PreviewSlide>
-          <PreviewCard isLoading={saveStatus !== "idle"}>
-            {/* Visible preview — unchanged, uses scaleRatio as before */}
+          <PreviewCard isLoading={isAnythingBusy}>
             <PhotoboothStrip
               type={type}
               images={session.photos}
@@ -141,23 +173,38 @@ export default function ExporterScreen() {
       </PreviewSection>
 
       <ScreenFooter
-        label={
-          saveStatus === "saving"
-            ? "Saving..."
-            : saveStatus === "saved"
-              ? "✓ Saved to gallery"
-              : "Save to gallery"
-        }
-        onPress={handleSave}
         accentColor={colors.accent}
+        actions={[
+          {
+            label:
+              saveStatus === "busy"
+                ? "Saving..."
+                : saveStatus === "done"
+                  ? "✓ Saved"
+                  : "Save",
+            onPress: handleSave,
+            variant: "secondary",
+            disabled: saveStatus !== "idle",
+          },
+          {
+            label:
+              shareStatus === "busy"
+                ? "Opening..."
+                : shareStatus === "done"
+                  ? "✓ Done"
+                  : "Share",
+            onPress: handleShare,
+            variant: "primary",
+            disabled: shareStatus !== "idle",
+          },
+        ]}
+      />
+      <ScreenFooter
+        accentColor={colors.accent}
+        label="Return to Start"
+        onPress={handleReset}
       />
 
-      {/*
-       * Skia canvas mounted off-screen at natural size.
-       * makeImageSnapshot() is synchronous and doesn't depend on the
-       * native compositor, so placement doesn't matter — it renders
-       * directly into GPU memory.
-       */}
       {bgReady && (
         <View
           pointerEvents="none"
@@ -178,7 +225,6 @@ export default function ExporterScreen() {
             filterMatrix={session.filterMatrix}
             stickers={session.stickers}
             onReady={() => setCanvasReady(true)}
-            // logo={session.logo}
           />
         </View>
       )}
@@ -187,25 +233,5 @@ export default function ExporterScreen() {
 }
 
 const styles = StyleSheet.create({
-  offscreen: {
-    position: "absolute",
-    top: -9999,
-    left: -9999,
-    opacity: 0,
-  },
-  toast: {
-    position: "absolute",
-    bottom: 100,
-    alignSelf: "center",
-    backgroundColor: "rgba(0,0,0,0.85)",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-
-  toastText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+  // retained for future use; local layout styles can be added here
 });

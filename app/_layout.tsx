@@ -72,7 +72,6 @@ export default function RootLayout() {
         setReady(true);
       }
     }
-
     prepare();
   }, []);
 
@@ -80,13 +79,12 @@ export default function RootLayout() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
-  if (!ready) return null;
-
+  // ✅ No early return — provider tree always mounted
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <SessionProvider>
-          <OffscreenCaptureHost />
+          {ready && <OffscreenCaptureHost />}
           <Stack>
             <Stack.Screen
               name="index"

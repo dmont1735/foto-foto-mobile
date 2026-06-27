@@ -23,40 +23,31 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { useSession } from "../context/session-context";
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function layoutNameToType(name: string): LayoutType {
+  return name.split(" ")[1] as LayoutType;
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function DesignSelectionScreen() {
   const { session, setBackground } = useSession();
   const { layout, photos } = session;
 
+  // Derive safely before hooks
+  const type = layout ? layoutNameToType(layout.name) : null;
+  const natural = type ? getStripNaturalSize(type) : { width: 1, height: 1 };
+  const scaleRatio = type
+    ? Math.min(CARD_WIDTH / natural.width, CARD_HEIGHT / natural.height)
+    : 1;
+
+  // ── Hooks — all unconditionally above any guard ──────────────────────────
+
   const imagePicker = useBackgroundImagePicker();
 
-  if (!layout) return null;
-
-  const type = layoutNameToType(layout.name);
-  const images = photos;
-
-  // ── Handlers ────────────────────────────────────────────────────────────────
-
-  const handleImageSelect = (opt: BackgroundImageOption) => {
-    imagePicker.selectImage(opt);
-    setBackground(backgroundFromOption(opt));
-  };
-
-  const handleRequestCustomImage = () => {
-    imagePicker.requestCustomImage((source) => {
-      const newOpt = imagePicker.addCustomImage(source);
-      setBackground(backgroundFromOption(newOpt));
-    });
-  };
-
-  const natural = getStripNaturalSize(type);
-  const scaleRatio = Math.min(
-    CARD_WIDTH / natural.width,
-    CARD_HEIGHT / natural.height,
-  );
-
   useEffect(() => {
+    if (!type) return;
     const bg = session.background;
     if (bg.type === "svg" && !bg.generatePngUri) {
       setBackground({
@@ -73,11 +64,12 @@ export default function DesignSelectionScreen() {
       });
     }
   }, [type]);
-  // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-  function layoutNameToType(name: string): LayoutType {
-    return name.split(" ")[1] as LayoutType;
-  }
+  // ── Guard — after all hooks ──────────────────────────────────────────────
+
+  if (!layout || !type) return null;
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
 
   function backgroundFromOption(opt: BackgroundImageOption): StripBackground {
     if (opt.type === "svg") {
@@ -96,6 +88,19 @@ export default function DesignSelectionScreen() {
     }
     return { type: "image", source: opt.source };
   }
+
+  const handleImageSelect = (opt: BackgroundImageOption) => {
+    imagePicker.selectImage(opt);
+    setBackground(backgroundFromOption(opt));
+  };
+
+  const handleRequestCustomImage = () => {
+    imagePicker.requestCustomImage((source) => {
+      const newOpt = imagePicker.addCustomImage(source);
+      setBackground(backgroundFromOption(newOpt));
+    });
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -110,7 +115,7 @@ export default function DesignSelectionScreen() {
           <PreviewCard>
             <PhotoboothStrip
               type={type}
-              images={images}
+              images={photos}
               background={session.background}
               scaleRatio={scaleRatio}
             />

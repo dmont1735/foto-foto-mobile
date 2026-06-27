@@ -180,30 +180,105 @@ export const PreviewCard: React.FC<PreviewCardProps> = ({
 );
 
 // ─── ScreenFooter ─────────────────────────────────────────────────────────────
+//
+// Two usage modes:
+//
+// 1. Single button (existing screens — no changes needed):
+//    <ScreenFooter label="Continue" onPress={handlePress} />
+//
+// 2. Multiple buttons (pass `actions`, omit `label` + `onPress`):
+//    <ScreenFooter
+//      actions={[
+//        { label: "Save", onPress: handleSave, variant: "secondary" },
+//        { label: "Share", onPress: handleShare },
+//      ]}
+//    />
+//
+// When `actions` is provided it takes precedence. Each action can be marked
+// `variant: "secondary"` for the outlined style; the default is `"primary"`
+// (filled accent). `disabled` suppresses press events and dims the button.
 
-export interface ScreenFooterProps {
+export interface FooterAction {
   label: string;
   onPress: () => void;
+  variant?: "primary" | "secondary";
+  disabled?: boolean;
+}
+
+export interface ScreenFooterProps {
+  // ── Single-button API (legacy) ──
+  label?: string;
+  onPress?: () => void;
   accentColor?: string;
+  // ── Multi-button API ──
+  actions?: FooterAction[];
 }
 
 export const ScreenFooter: React.FC<ScreenFooterProps> = ({
   label,
   onPress,
   accentColor = colors.accent,
-}) => (
-  <View style={sharedStyles.footer}>
-    <TouchableOpacity
-      style={[globalStyles.button, { backgroundColor: accentColor }]}
-      onPress={onPress}
-      activeOpacity={0.85}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Text style={globalStyles.buttonText}>{label}</Text>
-    </TouchableOpacity>
-  </View>
-);
+  actions,
+}) => {
+  // Multi-button path
+  if (actions && actions.length > 0) {
+    return (
+      <View style={sharedStyles.footer}>
+        <View style={sharedStyles.footerRow}>
+          {actions.map((action, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={action.onPress}
+              disabled={action.disabled}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
+              style={[
+                sharedStyles.footerAction,
+                action.variant === "secondary"
+                  ? [
+                      sharedStyles.footerActionSecondary,
+                      { borderColor: accentColor },
+                    ]
+                  : [
+                      sharedStyles.footerActionPrimary,
+                      { backgroundColor: accentColor },
+                    ],
+                action.disabled && sharedStyles.footerActionDisabled,
+              ]}
+            >
+              <Text
+                style={[
+                  sharedStyles.footerActionLabel,
+                  action.variant === "secondary" && {
+                    color: accentColor,
+                  },
+                ]}
+              >
+                {action.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  // Single-button path (original behaviour — unchanged)
+  return (
+    <View style={sharedStyles.footer}>
+      <TouchableOpacity
+        style={[globalStyles.button, { backgroundColor: accentColor }]}
+        onPress={onPress}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <Text style={globalStyles.buttonText}>{label}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
@@ -258,5 +333,32 @@ export const sharedStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 16,
+  },
+  footerRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  footerAction: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  footerActionPrimary: {
+    // backgroundColor set inline from accentColor
+  },
+  footerActionSecondary: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    // borderColor set inline from accentColor
+  },
+  footerActionDisabled: {
+    opacity: 0.45,
+  },
+  footerActionLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
   },
 });

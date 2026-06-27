@@ -43,28 +43,19 @@ function layoutNameToType(name: string): LayoutType {
   return name.split(" ")[1] as LayoutType;
 }
 
-/**
- * Compute an initial ImageTransform for a photo URI given the editor crop
- * dimensions. This must use the same crop size the edit sheet uses so that
- * fittedWidth/fittedHeight are in the correct coordinate space for PhotoSlot.
- *
- * The edit sheet derives cropWidth as: SCREEN_WIDTH - 80
- * (see photo-edit-sheet.tsx: EDITOR_WIDTH = SCREEN_WIDTH - 80)
- */
 function computeInitialTransform(
   uri: string,
   slotAspectRatio: number,
   onDone: (transform: ImageTransform) => void,
 ) {
   const screenWidth = Dimensions.get("window").width;
-  const cropWidth = screenWidth - 80; // mirrors EDITOR_WIDTH in photo-edit-sheet
+  const cropWidth = screenWidth - 80;
   const cropHeight = cropWidth / slotAspectRatio;
 
   Image.getSize(
     uri,
     (origW, origH) => {
       const coverScale = Math.max(cropWidth / origW, cropHeight / origH);
-
       onDone({
         translateX: 0,
         translateY: 0,
@@ -188,6 +179,11 @@ export default function PhotoCaptureScreen() {
   const retakeIdx = retakeIndex != null ? parseInt(retakeIndex, 10) : null;
   const isRetakeMode = retakeIdx !== null && !isNaN(retakeIdx);
 
+  // Derive safely before hooks so the hook count is always stable
+  const type = layout ? layoutNameToType(layout.name) : null;
+  const totalSlots = layout?.numberOfSlots ?? 0;
+  const slotAspectRatio = type ? getSlotAspectRatio(type) : 1;
+
   const [facing, setFacing] = useState<CameraType>("front");
   const [flash, setFlash] = useState<FlashMode>("off");
   const [isCapturing, setIsCapturing] = useState(false);
@@ -199,16 +195,7 @@ export default function PhotoCaptureScreen() {
 
   const cameraRef = useRef<CameraView>(null);
 
-  if (!layout) return null;
-
-  const type = layoutNameToType(layout.name);
-  const totalSlots = layout.numberOfSlots;
-  const slotsFilled = photos.length;
-  // In retake mode the viewfinder is always shown and controls stay enabled.
-  const allFilled = !isRetakeMode && slotsFilled >= totalSlots;
-  const slotAspectRatio = getSlotAspectRatio(type);
-
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers — all hooks unconditionally above any return ────────────────
 
   const handleFlip = useCallback(() => {
     setFacing((prev: CameraType) => (prev === "front" ? "back" : "front"));
@@ -244,6 +231,8 @@ export default function PhotoCaptureScreen() {
   );
 
   const handleGallery = useCallback(async () => {
+    const slotsFilled = photos.length;
+    const allFilled = !isRetakeMode && slotsFilled >= totalSlots;
     if (!isRetakeMode && allFilled) return;
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -286,9 +275,8 @@ export default function PhotoCaptureScreen() {
     setIsLoadingGallery(false);
   }, [
     isRetakeMode,
-    allFilled,
     totalSlots,
-    slotsFilled,
+    photos.length,
     retakeIdx,
     slotAspectRatio,
     addPhotos,
@@ -298,15 +286,12 @@ export default function PhotoCaptureScreen() {
 
   const takePhoto = useCallback(async () => {
     if (!cameraRef.current) return;
-
     setIsCapturing(true);
-
     try {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.85,
         skipProcessing: false,
       });
-
       if (photo?.uri) {
         addPhotoWithTransform(photo.uri);
       }
@@ -317,12 +302,22 @@ export default function PhotoCaptureScreen() {
     }
   }, [addPhotoWithTransform]);
 
-  const handleCapture = useCallback(() => {
-    if (isCapturing || allFilled || showCountdown) return;
-    setShowCountdown(true);
-  }, [isCapturing, allFilled, showCountdown]);
+  const handleCapture = useCallback(
+    (allFilled: boolean) => {
+      if (isCapturing || allFilled || showCountdown) return;
+      setShowCountdown(true);
+    },
+    [isCapturing, showCountdown],
+  );
 
-  // ── Permission gate ────────────────────────────────────────────────────────
+  // ── Guards — after all hooks ─────────────────────────────────────────────
+
+  if (!layout || !type) return null;
+
+  const slotsFilled = photos.length;
+  const allFilled = !isRetakeMode && slotsFilled >= totalSlots;
+
+  // ── Permission gate ────────────────────────────────────────────────────
 
   if (!permission) {
     return <View style={styles.flex} />;
@@ -334,7 +329,6 @@ export default function PhotoCaptureScreen() {
         <Text style={styles.permissionText}>
           Camera access is needed to take photos.
         </Text>
-
         <TouchableOpacity
           style={styles.permissionButton}
           onPress={requestPermission}
@@ -345,14 +339,13 @@ export default function PhotoCaptureScreen() {
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
       {/* ── Header ── */}
       <View style={styles.header}>
         <Text style={styles.title}>Take photos</Text>
-
         <Text style={styles.subtitle}>
           {isRetakeMode
             ? `Retaking photo ${retakeIdx! + 1}`
@@ -374,7 +367,6 @@ export default function PhotoCaptureScreen() {
                 flash={flash}
                 ratio="4:3"
               />
-
               <OverlayCountdown
                 visible={showCountdown}
                 start={timerSeconds}
@@ -407,7 +399,6 @@ export default function PhotoCaptureScreen() {
             onPress={handleFlip}
             disabled={allFilled || showCountdown}
           />
-
           <IconButton
             icon={FLASH_ICON[flash]}
             onPress={handleFlashCycle}
@@ -417,7 +408,7 @@ export default function PhotoCaptureScreen() {
 
         {/* Center */}
         <ShutterButton
-          onPress={handleCapture}
+          onPress={() => handleCapture(allFilled)}
           disabled={isCapturing || allFilled || showCountdown}
         />
 
@@ -471,8 +462,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgMain,
   },
 
-  // ── Header ──
-
   header: {
     paddingHorizontal: 24,
     paddingTop: 8,
@@ -493,8 +482,6 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     color: colors.accent,
   },
-
-  // ── Viewfinder ──
 
   viewfinderWrapper: {
     alignItems: "center",
@@ -520,8 +507,6 @@ const styles = StyleSheet.create({
     fontSize: 48,
     color: colors.accent,
   },
-
-  // ── Controls ──
 
   controls: {
     flexDirection: "row",
@@ -555,8 +540,6 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
 
-  // ── Timer icon with pill ──
-
   timerButton: {
     alignItems: "center",
     justifyContent: "center",
@@ -582,8 +565,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     letterSpacing: 0.2,
   },
-
-  // ── Summary ──
 
   summary: {
     flexGrow: 0,
@@ -617,8 +598,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
 
-  // ── Footer ──
-
   footer: {
     paddingHorizontal: 20,
     paddingTop: 10,
@@ -641,8 +620,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
-
-  // ── Permission ──
 
   permissionContainer: {
     flex: 1,

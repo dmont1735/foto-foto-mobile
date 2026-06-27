@@ -31,9 +31,20 @@ export default function PhotoConfirmationScreen() {
   const { session, updatePhotoTransform } = useSession();
   const { layout, photos } = session;
 
-  if (!layout) return null;
+  // Derive safely before hooks so hook count is always stable
+  const type = layout ? layoutNameToType(layout.name) : null;
 
-  const type = layoutNameToType(layout.name);
+  // ── Hooks — all unconditionally above any guard ──────────────────────────
+
+  const [editSheet, setEditSheet] = useState<{
+    visible: boolean;
+    index: number;
+  }>({ visible: false, index: 0 });
+
+  // ── Guard — after all hooks ──────────────────────────────────────────────
+
+  if (!layout || !type) return null;
+
   const images = photos.map((photo) => ({
     uri: photo.uri,
     transform: photo.transform,
@@ -44,11 +55,6 @@ export default function PhotoConfirmationScreen() {
     CARD_WIDTH / natural.width,
     CARD_HEIGHT / natural.height,
   );
-
-  const [editSheet, setEditSheet] = useState<{
-    visible: boolean;
-    index: number;
-  }>({ visible: false, index: 0 });
 
   const closeSheet = () => setEditSheet((s) => ({ ...s, visible: false }));
 
