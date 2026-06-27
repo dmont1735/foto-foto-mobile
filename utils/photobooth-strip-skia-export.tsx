@@ -4,16 +4,22 @@ import {
     Group,
     Image,
     Paint,
-    RoundedRect,
     rect,
+    RoundedRect,
     rrect,
     useCanvasRef,
     useImage,
 } from "@shopify/react-native-skia";
-import React, { forwardRef, useEffect, useImperativeHandle } from "react";
+import React, {
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useState,
+} from "react";
 import { Image as RNImage, View } from "react-native";
 
 import {
+    getStripNaturalSize,
     LayoutType,
     LogoConfig,
     StickerConfig,
@@ -21,6 +27,18 @@ import {
 } from "../components/photobooth-strip";
 import { StripBackground } from "../utils/strip-layouts";
 
+function normalizeUri(uri: string | null): string | null {
+  if (!uri) return null;
+
+  // already remote
+  if (uri.startsWith("http")) return uri;
+
+  // already valid file uri
+  if (uri.startsWith("file://")) return uri;
+
+  // bare path from fs / native modules
+  return `file://${uri}`;
+}
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface SkiaStripExportHandle {
@@ -420,6 +438,32 @@ const PhotoboothStripSkiaExport = forwardRef<
     defaultBackground,
   } = computeLayout(type);
 
+  // ─── State-driven pngUri ─────────────────────────────────────────────────
+  // Mutating background.pngUri directly doesn't trigger a re-render, so we
+  // mirror it into local state. This ensures useImage receives the real URI
+  // after the async PNG generation completes, causing the canvas to repaint
+  // before capture() is called.
+  const [resolvedBgUri, setResolvedBgUri] = useState<string | null>(
+    background?.type === "svg" ? (background.pngUri ?? null) : null,
+  );
+
+  useEffect(() => {
+    async function setPng() {
+      if (background?.type === "svg") {
+        if (background.pngUri) {
+          // Already generated — sync to state
+          setResolvedBgUri(background.pngUri);
+        } else if (background.generatePngUri) {
+          const size = getStripNaturalSize(type);
+          const uri = await background.generatePngUri(size.width, size.height);
+          background.pngUri = uri; // keep the mutation for external caching
+          setResolvedBgUri(uri);
+        }
+      }
+    }
+    setPng();
+  }, [background, type]);
+
   // Physical canvas/view dimensions at export resolution.
   // All drawing below still happens in base (1x) logical coordinates,
   // wrapped in a single Group that scales everything up uniformly.
@@ -427,7 +471,7 @@ const PhotoboothStripSkiaExport = forwardRef<
   const canvasHeight = stripHeight * exportScale;
 
   const bgColor =
-    background?.type === "solid" ? background.color : defaultBackground;
+    background?.type === "solid" ? background.color : defaultBackground; // always defined from LAYOUTS
 
   useImperativeHandle(ref, () => ({
     capture: () => {
@@ -437,26 +481,37 @@ const PhotoboothStripSkiaExport = forwardRef<
     },
   }));
 
-  const backgroundUri =
-    background?.type === "svg"
-      ? (background.pngUri ?? backgroundUriProp ?? null) // ← use cached pngUri
-      : (backgroundUriProp ?? null);
-
+  // ─── Resolve background image URI ────────────────────────────────────────
   const bgImageUri =
     background?.type === "image"
       ? resolveUri(background.source)
       : background?.type === "svg"
-        ? backgroundUri
-        : null;
+        ? resolvedBgUri
+        : null; // ← not backgroundUriProp — that was never meant for this path
 
-  const bgImage = useImage(bgImageUri);
-  const hasBackground = bgImageUri !== null;
+  const normalized = normalizeUri(bgImageUri);
 
+  const bgImage = useImage(normalized);
+
+  // ─── Fire onReady once the background image is loaded (if needed) ────────
   useEffect(() => {
-    if (!hasBackground || bgImage) {
-      onReady?.();
+    // For SVG backgrounds, wait until the PNG URI is resolved AND bgImage is loaded
+    if (background?.type === "svg") {
+      if (resolvedBgUri && bgImage) {
+        onReady?.();
+      }
+      return;
     }
-  }, [bgImage, hasBackground]);
+
+    // For image backgrounds, wait for bgImage to load
+    if (background?.type === "image") {
+      if (bgImage) onReady?.();
+      return;
+    }
+
+    // For solid/no background, ready immediately
+    onReady?.();
+  }, [bgImage, bgImageUri, resolvedBgUri, background?.type]);
 
   return (
     <View style={{ width: canvasWidth, height: canvasHeight }}>
@@ -466,14 +521,6 @@ const PhotoboothStripSkiaExport = forwardRef<
       >
         <Group transform={[{ scale: exportScale }]}>
           {/* Strip background */}
-          <RoundedRect
-            x={0}
-            y={0}
-            width={stripWidth}
-            height={stripHeight}
-            r={stripRadius}
-            color={bgColor}
-          />
 
           <Group
             clip={rrect(
@@ -482,6 +529,17 @@ const PhotoboothStripSkiaExport = forwardRef<
               stripRadius,
             )}
           >
+            {/* Always draw the solid base color first */}
+            <RoundedRect
+              x={0}
+              y={0}
+              width={stripWidth}
+              height={stripHeight}
+              r={stripRadius}
+              color={bgColor}
+            />
+
+            {/* Then composite the background image (PNG/image) on top if available */}
             {bgImage && (
               <Image
                 image={bgImage}

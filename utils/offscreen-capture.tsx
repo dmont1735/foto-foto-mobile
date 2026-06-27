@@ -1,6 +1,6 @@
 // utils/OffscreenCapture.tsx
 import React, { useEffect, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { captureRef } from "react-native-view-shot";
 
 type CaptureJob = {
@@ -41,15 +41,20 @@ export const OffscreenCaptureHost: React.FC = () => {
   useEffect(() => {
     if (!job || !viewRef.current) return;
 
-    captureRef(viewRef, { format: "png", quality: 1 })
-      .then((uri) => {
-        job.resolve(uri);
-        setJob(null);
-      })
-      .catch((err) => {
-        job.reject(err);
-        setJob(null);
-      });
+    // Wait for native paint to complete before capturing
+    const timer = setTimeout(() => {
+      captureRef(viewRef, { format: "png", quality: 1 })
+        .then((uri) => {
+          job.resolve(uri);
+          setJob(null);
+        })
+        .catch((err) => {
+          job.reject(err);
+          setJob(null);
+        });
+    }, 300); // 300ms is usually enough; bump to 500 if still transparent
+
+    return () => clearTimeout(timer);
   }, [job]);
 
   if (!job) return null;
@@ -59,13 +64,16 @@ export const OffscreenCaptureHost: React.FC = () => {
   return (
     <View
       ref={viewRef}
-      style={[
-        StyleSheet.absoluteFillObject,
-        { opacity: 0, pointerEvents: "none", width, height },
-      ]}
+      style={{
+        position: "absolute",
+        top: -99999, // ← offscreen, not opacity 0
+        left: -99999,
+        width: job.width,
+        height: job.height,
+      }}
       collapsable={false}
     >
-      <BgComponent color={color} width={width} height={height} />
+      <BgComponent color={job.color} width={job.width} height={job.height} />
     </View>
   );
 };
