@@ -65,6 +65,7 @@ export default function PhotoConfirmationScreen() {
       <ScreenHeader
         title="Confirm your photos"
         subtitle="Tap any photo to adjust it"
+        onBack={() => router.back()}
       />
 
       <PreviewSection>
@@ -124,11 +125,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
   },
   sheetWrapper: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    pointerEvents: "box-none",
   },
 });

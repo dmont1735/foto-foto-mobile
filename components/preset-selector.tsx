@@ -11,12 +11,7 @@ import {
   sharedStyles,
 } from "@/components/screen-layout";
 import React, { useCallback, useRef, useState } from "react";
-import {
-  FlatList,
-  ScrollView,
-  View,
-  ViewToken
-} from "react-native";
+import { FlatList, ScrollView, View, ViewToken } from "react-native";
 import { colors } from "../styles/theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,6 +27,7 @@ export interface PresetItem {
 export interface PresetSelectorProps {
   items: PresetItem[];
   onConfirm: (item: PresetItem) => void;
+  onBack?: () => void;
   initialIndex?: number;
   confirmLabel?: string;
   title?: string;
@@ -62,6 +58,7 @@ const defaultTheme = {
 const PresetSelector: React.FC<PresetSelectorProps> = ({
   items,
   onConfirm,
+  onBack,
   initialIndex = 0,
   confirmLabel = "Continue",
   title,
@@ -128,10 +125,10 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({
 
   // ScreenInner = plain flex:1 View — the parent screen owns the SafeAreaView.
   return (
-    <ScreenInner style={{ backgroundColor: theme.background }}>
+    <ScreenInner>
       {/* Header */}
       {(title || subtitle) && (
-        <ScreenHeader title={title ?? ""} subtitle={subtitle} />
+        <ScreenHeader title={title ?? ""} subtitle={subtitle} onBack={onBack} />
       )}
 
       {/* ── Preview (swipeable) ── */}

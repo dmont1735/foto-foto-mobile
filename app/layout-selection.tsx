@@ -92,6 +92,9 @@ export default function LayoutSelectionScreen() {
         subtitle="Pick the strip style that fits your shoot."
         confirmLabel="Use this layout"
         onConfirm={handleConfirm}
+        onBack={() => {
+          router.back();
+        }}
       />
     </ScreenContainer>
   );

@@ -48,6 +48,7 @@ export default function FilterPreviewScreen() {
       <ScreenHeader
         title="Choose a filter"
         subtitle="Preview your photo strip with a filter applied"
+        onBack={() => router.back()}
       />
 
       <PreviewSection>

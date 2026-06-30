@@ -2,6 +2,7 @@ import PhotoboothStrip, {
     LayoutType,
     getStripNaturalSize,
 } from "@/components/photobooth-strip";
+import PopupAlert, { AlertButton } from "@/components/pop-up-alert";
 import {
     CARD_HEIGHT,
     CARD_WIDTH,
@@ -21,7 +22,7 @@ import * as MediaLibrary from "expo-media-library";
 import { router } from "expo-router";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSession } from "../context/session-context";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -33,6 +34,12 @@ function layoutNameToType(name: string): LayoutType {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ActionStatus = "idle" | "busy" | "done";
+
+type AlertConfig = {
+  title: string;
+  message?: string;
+  buttons?: AlertButton[];
+} | null;
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -47,6 +54,16 @@ export default function ExporterScreen() {
   const [canvasReady, setCanvasReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<ActionStatus>("idle");
   const [shareStatus, setShareStatus] = useState<ActionStatus>("idle");
+  const [alertConfig, setAlertConfig] = useState<AlertConfig>(null);
+
+  const dismissAlert = useCallback(() => setAlertConfig(null), []);
+
+  const showAlert = useCallback(
+    (title: string, message?: string, buttons?: AlertButton[]) => {
+      setAlertConfig({ title, message, buttons });
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!type) return;
@@ -94,9 +111,10 @@ export default function ExporterScreen() {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(
+        showAlert(
           "Permission required",
           "Please allow access to your photo library to save the strip.",
+          [{ label: "OK", onPress: dismissAlert }],
         );
         setSaveStatus("idle");
         return;
@@ -107,10 +125,12 @@ export default function ExporterScreen() {
       setSaveStatus("done");
       setTimeout(() => setSaveStatus("idle"), 2000);
     } catch {
-      Alert.alert("Error", "Could not save to gallery. Please try again.");
+      showAlert("Error", "Could not save to gallery. Please try again.", [
+        { label: "OK", onPress: dismissAlert },
+      ]);
       setSaveStatus("idle");
     }
-  }, [captureToTempFile]);
+  }, [captureToTempFile, showAlert, dismissAlert]);
 
   // ── Share via sheet ──────────────────────────────────────────────────────
 
@@ -125,18 +145,34 @@ export default function ExporterScreen() {
       setShareStatus("done");
       setTimeout(() => setShareStatus("idle"), 2000);
     } catch {
-      Alert.alert("Error", "Could not share. Please try again.");
+      showAlert("Error", "Could not share. Please try again.", [
+        { label: "OK", onPress: dismissAlert },
+      ]);
       setShareStatus("idle");
     }
-  }, [captureToTempFile]);
+  }, [captureToTempFile, showAlert, dismissAlert]);
 
   // ── Reset ────────────────────────────────────────────────────────────────
 
   const handleReset = useCallback(() => {
-    router.replace("/");
-    // Reset after navigation has begun so this screen doesn't re-render with null session
-    setTimeout(() => resetSession(), 0);
-  }, [resetSession]);
+    showAlert(
+      "Start over?",
+      "This will delete your photos and all edits. This can't be undone.",
+      [
+        { label: "Cancel", variant: "secondary", onPress: dismissAlert },
+        {
+          label: "Start over",
+          variant: "primary",
+          onPress: () => {
+            dismissAlert();
+            router.replace("/");
+            // Reset after navigation has begun so this screen doesn't re-render with null session
+            setTimeout(() => resetSession(), 0);
+          },
+        },
+      ],
+    );
+  }, [showAlert, dismissAlert, resetSession]);
 
   // ── Guard — after all hooks, before render ───────────────────────────────
 
@@ -154,7 +190,7 @@ export default function ExporterScreen() {
 
   return (
     <ScreenContainer>
-      <ScreenHeader title="Share your creation" />
+      <ScreenHeader title="Share your creation" onBack={() => router.back()} />
 
       <PreviewSection>
         <PreviewSlide>
@@ -228,6 +264,14 @@ export default function ExporterScreen() {
           />
         </View>
       )}
+
+      <PopupAlert
+        visible={alertConfig !== null}
+        title={alertConfig?.title ?? ""}
+        message={alertConfig?.message}
+        buttons={alertConfig?.buttons}
+        onDismiss={dismissAlert}
+      />
     </ScreenContainer>
   );
 }

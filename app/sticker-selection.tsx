@@ -400,6 +400,7 @@ export default function StickerPreviewScreen() {
               ? "Drag to move • pinch to resize & rotate"
               : "Pick a sticker, tap to place"
         }
+        onBack={() => router.back()}
       />
 
       <PreviewSection>

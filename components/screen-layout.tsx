@@ -76,13 +76,28 @@ export const ScreenInner: React.FC<ScreenInnerProps> = ({
 export interface ScreenHeaderProps {
   title: string;
   subtitle?: string;
+  onBack?: () => void;
+  backDisabled?: boolean;
 }
 
 export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
   title,
   subtitle,
+  onBack,
+  backDisabled = false,
 }) => (
   <View style={sharedStyles.header}>
+    <View style={sharedStyles.headerNav}>
+      {onBack && (
+        <ScreenNavButton
+          label="Back"
+          onPress={onBack}
+          align="left"
+          color={backDisabled ? colors.bgHeader : undefined}
+          disabled={backDisabled}
+        />
+      )}
+    </View>
     <Text style={[sharedStyles.title, { color: colors.textMain }]}>
       {title}
     </Text>
@@ -93,7 +108,6 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
     ) : null}
   </View>
 );
-
 // ─── PreviewSection ───────────────────────────────────────────────────────────
 
 export interface PreviewSectionProps {
@@ -146,6 +160,41 @@ const ShimmerOverlay: React.FC = () => {
     />
   );
 };
+
+// ─── NavButton ────────────────────────────────────────────────────────────────
+
+export interface ScreenNavButtonProps {
+  label: string;
+  onPress: () => void;
+  align?: "left" | "right";
+  color?: string;
+  disabled?: boolean;
+}
+
+export const ScreenNavButton: React.FC<ScreenNavButtonProps> = ({
+  label,
+  onPress,
+  align = "right",
+  color = colors.accent,
+  disabled = false,
+}) => (
+  <TouchableOpacity
+    onPress={onPress}
+    disabled={disabled}
+    activeOpacity={0.7}
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    style={[
+      sharedStyles.navButton,
+      align === "left"
+        ? sharedStyles.navButtonLeft
+        : sharedStyles.navButtonRight,
+      disabled && sharedStyles.navButtonDisabled,
+    ]}
+  >
+    <Text style={[sharedStyles.navButtonLabel, { color }]}>{label}</Text>
+  </TouchableOpacity>
+);
 
 // ─── PreviewCard ─────────────────────────────────────────────────────────────
 
@@ -360,5 +409,26 @@ export const sharedStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#fff",
+  },
+  headerNav: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  navButton: {
+    zIndex: 10,
+  },
+  navButtonLeft: {
+    left: 5,
+  },
+  navButtonRight: {
+    right: 5,
+  },
+  navButtonLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  navButtonDisabled: {
+    opacity: 0.35,
   },
 });

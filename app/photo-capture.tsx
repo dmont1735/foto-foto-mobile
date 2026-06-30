@@ -34,6 +34,11 @@ import TimerIcon from "@/components/icons/timer-icon";
 
 import FlipCameraIcon from "@/components/icons/flip-camera-icon";
 import { ImageTransform } from "@/components/photo-edit-sheet";
+import {
+  ScreenContainer,
+  ScreenFooter,
+  ScreenHeader,
+} from "@/components/screen-layout";
 import { colors } from "@/styles/theme";
 import { useSession } from "../context/session-context";
 
@@ -179,7 +184,6 @@ export default function PhotoCaptureScreen() {
   const retakeIdx = retakeIndex != null ? parseInt(retakeIndex, 10) : null;
   const isRetakeMode = retakeIdx !== null && !isNaN(retakeIdx);
 
-  // Derive safely before hooks so the hook count is always stable
   const type = layout ? layoutNameToType(layout.name) : null;
   const totalSlots = layout?.numberOfSlots ?? 0;
   const slotAspectRatio = type ? getSlotAspectRatio(type) : 1;
@@ -194,8 +198,6 @@ export default function PhotoCaptureScreen() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const cameraRef = useRef<CameraView>(null);
-
-  // ── Handlers — all hooks unconditionally above any return ────────────────
 
   const handleFlip = useCallback(() => {
     setFacing((prev: CameraType) => (prev === "front" ? "back" : "front"));
@@ -310,14 +312,14 @@ export default function PhotoCaptureScreen() {
     [isCapturing, showCountdown],
   );
 
-  // ── Guards — after all hooks ─────────────────────────────────────────────
+  // ── Guards ───────────────────────────────────────────────────────────────
 
   if (!layout || !type) return null;
 
   const slotsFilled = photos.length;
   const allFilled = !isRetakeMode && slotsFilled >= totalSlots;
 
-  // ── Permission gate ────────────────────────────────────────────────────
+  // ── Permission gate ──────────────────────────────────────────────────────
 
   if (!permission) {
     return <View style={styles.flex} />;
@@ -339,21 +341,22 @@ export default function PhotoCaptureScreen() {
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
+
+  const headerSubtitle = isRetakeMode
+    ? `Retaking photo ${retakeIdx! + 1}`
+    : allFilled
+      ? "All photos taken!"
+      : `Photo ${slotsFilled + 1} of ${totalSlots}`;
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Take photos</Text>
-        <Text style={styles.subtitle}>
-          {isRetakeMode
-            ? `Retaking photo ${retakeIdx! + 1}`
-            : allFilled
-              ? "All photos taken!"
-              : `Photo ${slotsFilled + 1} of ${totalSlots}`}
-        </Text>
-      </View>
+    <ScreenContainer>
+      <ScreenHeader
+        title="Take photos"
+        subtitle={headerSubtitle}
+        onBack={router.back}
+        backDisabled={showCountdown}
+      />
 
       {/* ── Viewfinder ── */}
       <View style={styles.viewfinderWrapper}>
@@ -392,7 +395,6 @@ export default function PhotoCaptureScreen() {
 
       {/* ── Controls ── */}
       <View style={styles.controls}>
-        {/* Left group */}
         <View style={styles.controlsGroup}>
           <IconButton
             icon={<FlipCameraIcon size={35} color={colors.accent} />}
@@ -406,13 +408,11 @@ export default function PhotoCaptureScreen() {
           />
         </View>
 
-        {/* Center */}
         <ShutterButton
           onPress={() => handleCapture(allFilled)}
           disabled={isCapturing || allFilled || showCountdown}
         />
 
-        {/* Right */}
         <View style={styles.controlsGroup}>
           <IconButton
             icon={<TimerIconWithPill seconds={timerSeconds} />}
@@ -434,21 +434,18 @@ export default function PhotoCaptureScreen() {
       </View>
 
       {/* ── Footer ── */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.footerButton,
-            !allFilled && styles.footerButtonDisabled,
-          ]}
-          onPress={() => router.push("/photo-confirmation")}
-          disabled={!allFilled}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-        >
-          <Text style={styles.footerButtonText}>Continue</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      <ScreenFooter
+        label="Continue"
+        onPress={() => router.push("/photo-confirmation")}
+        actions={[
+          {
+            label: "Continue",
+            onPress: () => router.push("/photo-confirmation"),
+            disabled: !allFilled,
+          },
+        ]}
+      />
+    </ScreenContainer>
   );
 }
 
@@ -456,32 +453,6 @@ export default function PhotoCaptureScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-
-  container: {
-    flex: 1,
-    backgroundColor: colors.bgMain,
-  },
-
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 12,
-    alignItems: "center",
-  },
-
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    letterSpacing: -0.4,
-    color: colors.textMain,
-    marginBottom: 4,
-  },
-
-  subtitle: {
-    fontSize: 15,
-    fontWeight: "400",
-    color: colors.accent,
-  },
 
   viewfinderWrapper: {
     alignItems: "center",
@@ -566,18 +537,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 
-  summary: {
-    flexGrow: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.bgCardSelected,
-    paddingTop: 10,
-  },
-
-  summaryContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-
   thumbnail: {
     borderRadius: 10,
     overflow: "hidden",
@@ -596,29 +555,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: colors.accent,
-  },
-
-  footer: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 16,
-  },
-
-  footerButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-
-  footerButtonDisabled: {
-    opacity: 0.4,
-  },
-
-  footerButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
   },
 
   permissionContainer: {

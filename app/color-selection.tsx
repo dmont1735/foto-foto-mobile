@@ -74,6 +74,7 @@ export default function ColorSelectionScreen() {
       <ScreenHeader
         title="Choose a color"
         subtitle="Pick the tone that matches your strip."
+        onBack={() => router.back()}
       />
 
       <PreviewSection>
